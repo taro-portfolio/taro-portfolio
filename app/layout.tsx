@@ -28,6 +28,8 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* 🌟 บังคับให้มือถือแสดงผลเต็มจอแบบเดสก์ท็อป */}
+        <meta name="viewport" content="width=1200" />
       </head>
       <body className={inter.className}>{children}</body>
     </html>
