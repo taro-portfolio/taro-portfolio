@@ -1,38 +1,35 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { LanguageProvider } from "@/context/LanguageContext";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Portfolio Tracker",
-  description: "Track your stocks and assets portfolio",
+  title: "TARO PORTFOLIO",
+  description: "แอพติดตามพอร์ตหุ้นและการลงทุน TARO PORTFOLIO",
+  manifest: "/manifest.json",
+  themeColor: "#020617",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TARO PORTFOLIO",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        <LanguageProvider>
-          {children}
-        </LanguageProvider>
-      </body>
+    <html lang="th">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="https://www.google.com/s2/favicons?domain=google.com&sz=128" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </head>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }

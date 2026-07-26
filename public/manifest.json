@@ -1,0 +1,21 @@
+{
+  "name": "TARO PORTFOLIO",
+  "short_name": "TaroPortfolio",
+  "description": "แอพติดตามพอร์ตหุ้นและการลงทุน TARO PORTFOLIO",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "https://www.google.com/s2/favicons?domain=google.com&sz=128",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://www.google.com/s2/favicons?domain=google.com&sz=128",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
