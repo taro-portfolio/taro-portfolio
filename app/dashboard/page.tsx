@@ -525,7 +525,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* 🌟 ปรับ Grid เป็น Responsive (1 คอลัมน์บนมือถือ, 2 คอลัมน์บนจอใหญ่) */}
           <div className="mt-6 md:mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             <div className="flex flex-col gap-4 md:gap-6 justify-between">
