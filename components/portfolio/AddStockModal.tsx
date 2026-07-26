@@ -91,9 +91,12 @@ export default function AddStockModal({
     setSaving(true);
 
     try {
+      // 🌟 เปลี่ยนมาใช้ getSession() แทน เพื่อให้อ่านค่าจากเครื่องมือถือได้ทันที ไม่หลุดบ่อย
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const user = session?.user;
 
       if (!user) {
         alert("กรุณาเข้าสู่ระบบใหม่อีกครั้ง");
@@ -143,7 +146,6 @@ export default function AddStockModal({
         error = result.error;
 
         if (!error) {
-          // 1. ค้นหากระเป๋าเงินสดที่ตรงกับสกุลเงินของตลาดก่อน
           let { data: cashData } = await supabase
             .from("cash")
             .select("*")
@@ -159,7 +161,6 @@ export default function AddStockModal({
             cashId = cashData[0].id;
             currentCashAmount = Number(cashData[0].amount || 0);
           } else if (targetCashCurrency === "USD") {
-            // หากซื้อหุ้น US แต่ยังไม่มีกระเป๋า USD ให้ลองดึงกระเป๋า THB มาหักลบแทน (แปลงค่าเงินหรือใช้ร่วมกันเพื่อป้องกันติดลบ)
             const { data: thbCashData } = await supabase
               .from("cash")
               .select("*")
@@ -171,8 +172,6 @@ export default function AddStockModal({
             if (thbCashData && thbCashData.length > 0) {
               cashId = thbCashData[0].id;
               currentCashAmount = Number(thbCashData[0].amount || 0);
-              // แปลงยอดซื้อ USD เป็น THB คร่าวๆ (อัตราแลกเปลี่ยน ~35) เพื่อหักจากกระเป๋าบาทที่มีอยู่ 1 ล้านบาท
-              // หรือถ้าต้องการตัดตรงๆ ให้ใช้ยอด totalAmount ได้เลยหากกระเป๋าเป็นกระเป๋าเดียวกัน
             }
           }
 
