@@ -263,7 +263,6 @@ export default function Dashboard() {
     initDashboard();
   }, [initDashboard]);
 
-  // 🌟 ฟังก์ชันตรวจสอบสิทธิ์แอดมินก่อนเข้าหน้าแอดมิน
   async function handleAdminAccess() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -272,7 +271,6 @@ export default function Dashboard() {
       return;
     }
 
-    // กำหนดอีเมลแอดมินของคุณที่นี่ (เปลี่ยนเป็นอีเมลจริงของคุณ)
     const adminEmails = ["aflanos001@gmail.com", "admin@taro.com"]; 
 
     if (adminEmails.includes(user.email ?? "")) {
@@ -486,20 +484,21 @@ export default function Dashboard() {
     <>
       <Navbar lang={lang} setLang={setLang} />
 
-      <main className="min-h-screen bg-slate-950 text-slate-100">
+      {/* บังคับขนาดความกว้างขั้นต่ำ 1200px เสมอ เพื่อให้มือถือแสดงผลเลย์เอาต์คู่เหมือนคอมพิวเตอร์ */}
+      <main className="min-h-screen bg-slate-950 text-slate-100 min-w-[1200px] overflow-x-auto">
         <div className="mx-auto max-w-7xl px-4 py-8 md:p-10">
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
+          <div className="flex flex-row items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
             <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white">{t.welcome}</h1>
-              <p className="mt-1 text-sm text-slate-400 truncate">{email}</p>
+              <h1 className="text-3xl font-extrabold text-white">{t.welcome}</h1>
+              <p className="mt-1 text-sm text-slate-400">{email}</p>
             </div>
 
             <div className="flex items-center gap-3">
               <button
                 onClick={() => fetchPrices(rawStocks)}
                 disabled={refreshingPrices}
-                className="flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 px-4 py-2 text-xs md:text-sm font-medium text-slate-300 hover:bg-slate-800 transition cursor-pointer"
+                className="flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 transition cursor-pointer"
               >
                 <span className={refreshingPrices ? "animate-spin" : ""}>🔄</span>
                 {refreshingPrices ? t.updating : t.refreshPrices}
@@ -526,12 +525,13 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="mt-6 md:mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* บังคับแสดงผลเป็น 2 คอลัมน์ซ้าย-ขวาตลอดเวลา */}
+          <div className="mt-8 grid grid-cols-2 gap-6">
             
-            <div className="flex flex-col gap-4 md:gap-6 justify-between">
-              <div className="rounded-2xl bg-gradient-to-br from-emerald-950/60 via-slate-900/80 to-slate-900 p-5 md:p-6 border border-emerald-500/30 shadow-xl flex-1 flex flex-col justify-center">
-                <p className="text-xs md:text-sm font-medium text-emerald-400">{t.cash}</p>
-                <h2 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">
+            <div className="flex flex-col gap-6 justify-between">
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-950/60 via-slate-900/80 to-slate-900 p-6 border border-emerald-500/35 shadow-xl flex-1 flex flex-col justify-center">
+                <p className="text-sm font-medium text-emerald-400">{t.cash}</p>
+                <h2 className="mt-2 text-3xl font-extrabold text-white">
                   {currencySymbol(currency)}{mainCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </h2>
                 <p className="mt-1 text-xs text-slate-400">
@@ -539,9 +539,9 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-slate-900/60 p-5 md:p-6 border border-slate-800/80 shadow-xl flex-1 flex flex-col justify-center">
-                <p className="text-xs md:text-sm font-medium text-slate-400">{t.portfolioValue}</p>
-                <h2 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">
+              <div className="rounded-2xl bg-slate-900/60 p-6 border border-slate-800/80 shadow-xl flex-1 flex flex-col justify-center">
+                <p className="text-sm font-medium text-slate-400">{t.portfolioValue}</p>
+                <h2 className="mt-2 text-3xl font-extrabold text-white">
                   {currencySymbol(currency)}{currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">
@@ -549,9 +549,9 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-slate-900/60 p-5 md:p-6 border border-slate-800/80 shadow-xl flex-1 flex flex-col justify-center">
-                <p className="text-xs md:text-sm font-medium text-slate-400">{t.profitLoss}</p>
-                <h2 className={`mt-2 text-2xl md:text-3xl font-extrabold ${profitLoss >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              <div className="rounded-2xl bg-slate-900/60 p-6 border border-slate-800/80 shadow-xl flex-1 flex flex-col justify-center">
+                <p className="text-sm font-medium text-slate-400">{t.profitLoss}</p>
+                <h2 className={`mt-2 text-3xl font-extrabold ${profitLoss >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                   {currencySymbol(currency)}{profitLoss.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">
@@ -560,14 +560,14 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-slate-900/60 p-5 md:p-8 border border-slate-800/80 shadow-xl flex flex-col justify-between">
-              <h2 className="mb-4 text-xl md:text-2xl font-bold text-white">{t.assetAllocation}</h2>
+            <div className="rounded-2xl bg-slate-900/60 p-8 border border-slate-800/80 shadow-xl flex flex-col justify-between">
+              <h2 className="mb-4 text-2xl font-bold text-white">{t.assetAllocation}</h2>
               {chartData.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">
                   <p className="text-center text-slate-500 py-12 text-sm">{t.noChartData}</p>
                 </div>
               ) : (
-                <div className="h-64 md:h-[350px] w-full">
+                <div className="h-[350px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -599,7 +599,7 @@ export default function Dashboard() {
 
           </div>
 
-          <div className="mt-6 md:mt-8 flex flex-wrap gap-3 md:gap-4">
+          <div className="mt-8 flex flex-wrap gap-4">
             <button
               onClick={() => {
                 setModalMode("BUY");
@@ -630,11 +630,11 @@ export default function Dashboard() {
             </button>
           </div>
 
-          <div className="mt-6 md:mt-8 rounded-2xl bg-slate-900/60 p-5 md:p-8 border border-slate-800/80 shadow-xl">
-            <h2 className="mb-4 md:mb-6 text-xl md:text-2xl font-bold text-white">{t.stockList}</h2>
+          <div className="mt-8 rounded-2xl bg-slate-900/60 p-8 border border-slate-800/80 shadow-xl">
+            <h2 className="mb-6 text-2xl font-bold text-white">{t.stockList}</h2>
 
             {aggregatedStocks.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-800 p-8 md:p-12 text-center text-slate-500 text-sm">
+              <div className="rounded-xl border border-dashed border-slate-800 p-12 text-center text-slate-500 text-sm">
                 {t.noStockData}
               </div>
             ) : (
@@ -727,32 +727,32 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="mt-6 md:mt-8 rounded-2xl bg-[#090d16] p-6 text-white shadow-xl border border-slate-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+          <div className="mt-8 rounded-2xl bg-[#090d16] p-6 text-white shadow-xl border border-slate-800">
+            <div className="flex items-center justify-between mb-6">
               <div>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">⭐</span>
-                  <h2 className="text-xl md:text-2xl font-extrabold text-white">
+                  <h2 className="text-2xl font-extrabold text-white">
                     {lang === "th" ? "หุ้นที่ฉันติดตาม หุ้นสหรัฐ 🇺🇸" : "My Watchlist - US Stocks 🇺🇸"}
                   </h2>
                 </div>
-                <p className="text-slate-400 text-xs md:text-sm mt-1">
+                <p className="text-slate-400 text-sm mt-1">
                   {lang === "th" ? "เพิ่มและติดตามราคาหุ้นสหรัฐที่คุณสนใจแบบเรียลไทม์" : "Track US stocks in real-time."}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div>
                 <form onSubmit={handleAddUsWatchlist} className="flex items-center gap-2">
                   <input
                     type="text"
                     value={newUsInput}
                     onChange={(e) => setNewUsInput(e.target.value)}
                     placeholder={lang === "th" ? "พิมพ์ชื่อหุ้นสหรัฐ (เช่น AAPL)" : "Enter US Symbol (e.g. AAPL)"}
-                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs md:text-sm text-white uppercase focus:border-indigo-500 focus:outline-none"
+                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white uppercase focus:border-indigo-500 focus:outline-none"
                   />
                   <button
                     type="submit"
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs md:text-sm font-bold text-white hover:bg-indigo-500 transition cursor-pointer shadow-md"
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 transition cursor-pointer shadow-md"
                   >
                     {lang === "th" ? "+ เพิ่มหุ้น" : "+ Add"}
                   </button>
@@ -765,7 +765,7 @@ export default function Dashboard() {
                 {lang === "th" ? "ยังไม่มีหุ้นสหรัฐในรายการติดตาม" : "No US watchlist stocks."}
               </p>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 grid-cols-4">
                 {usWatchlist.map((sym) => {
                   const data = usPrices[sym] || { price: 0, change: "+0.00%", isUp: true };
                   const logoUrl = getTradingViewStyleLogo(sym);
@@ -827,32 +827,32 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="mt-6 md:mt-8 rounded-2xl bg-[#090d16] p-6 text-white shadow-xl border border-slate-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+          <div className="mt-8 rounded-2xl bg-[#090d16] p-6 text-white shadow-xl border border-slate-800">
+            <div className="flex items-center justify-between mb-6">
               <div>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">⭐</span>
-                  <h2 className="text-xl md:text-2xl font-extrabold text-white">
+                  <h2 className="text-2xl font-extrabold text-white">
                     {lang === "th" ? "หุ้นที่ฉันติดตาม หุ้นไทย 🇹🇭" : "My Watchlist - Thai Stocks 🇹🇭"}
                   </h2>
                 </div>
-                <p className="text-slate-400 text-xs md:text-sm mt-1">
+                <p className="text-slate-400 text-sm mt-1">
                   {lang === "th" ? "เพิ่มและติดตามราคาหุ้นไทยที่คุณสนใจ" : "Track Thai stocks."}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div>
                 <form onSubmit={handleAddThWatchlist} className="flex items-center gap-2">
                   <input
                     type="text"
                     value={newThInput}
                     onChange={(e) => setNewThInput(e.target.value)}
                     placeholder={lang === "th" ? "พิมพ์ชื่อหุ้นไทย (เช่น PTT)" : "Enter Thai Symbol (e.g. PTT)"}
-                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs md:text-sm text-white uppercase focus:border-indigo-500 focus:outline-none"
+                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white uppercase focus:border-indigo-500 focus:outline-none"
                   />
                   <button
                     type="submit"
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs md:text-sm font-bold text-white hover:bg-indigo-500 transition cursor-pointer shadow-md"
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500 transition cursor-pointer shadow-md"
                   >
                     {lang === "th" ? "+ เพิ่มหุ้น" : "+ Add"}
                   </button>
@@ -865,7 +865,7 @@ export default function Dashboard() {
                 {lang === "th" ? "ยังไม่มีหุ้นไทยในรายการติดตาม" : "No Thai watchlist stocks."}
               </p>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 grid-cols-4">
                 {thWatchlist.map((sym) => {
                   const data = thPrices[sym] || { price: 0, change: "+0.00%", isUp: true };
                   const logoUrl = getTradingViewStyleLogo(sym);
@@ -926,7 +926,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* 🌟 ปุ่ม AD TARO ขนาดเล็กมากๆ (Text เล็ก จางๆ) อยู่มุมขวาล่างเหนือปุ่ม Reset */}
           <div className="mt-8 flex justify-end">
             <button
               onClick={handleAdminAccess}
@@ -939,7 +938,7 @@ export default function Dashboard() {
           <div className="mt-2 mb-8 flex flex-col items-center justify-center border-t border-slate-800/80 pt-8">
             <button
               onClick={handleResetAllData}
-              className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-6 py-3 text-xs md:text-sm font-bold text-rose-400 hover:bg-rose-500/20 active:scale-95 transition cursor-pointer shadow-lg"
+              className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-6 py-3 text-sm font-bold text-rose-400 hover:bg-rose-500/20 active:scale-95 transition cursor-pointer shadow-lg"
             >
               <span>🗑️</span>
               {lang === "th" ? "ล้างข้อมูลพอร์ตและเงินสดทั้งหมด (Reset Data)" : "Reset All Portfolio & Cash Data"}
