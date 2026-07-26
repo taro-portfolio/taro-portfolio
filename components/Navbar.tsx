@@ -17,7 +17,6 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
 
   const [isVip, setIsVip] = useState(false);
 
-  // 🌟 อัปเดตเงื่อนไขเช็ค path ให้ตรงกับโฟลเดอร์ live-stock-news
   const isDashboard =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/portfolio") ||
@@ -53,45 +52,27 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
 
   return (
     <nav className="w-full border-b border-slate-800 bg-slate-950 sticky top-0 z-50">
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-8">
-
-        {/* โลโก้และชื่อเว็บ (แทนที่ข้อความ TARO เดิม) */}
-        <Link href="/dashboard" className="flex items-center gap-3 group">
-          <img
-            src="https://dqnrixhptlgceimxdvwo.supabase.co/storage/v1/object/public/slips/S__113950723.jpg"
-            alt="TARO Portfolio Logo"
-            className="w-10 h-10 rounded-xl object-cover border border-indigo-500/30 shadow-md group-hover:scale-105 transition"
-          />
-          <div className="flex flex-col">
-            <span className="text-lg font-extrabold tracking-wider text-white leading-tight">
-              TARO
-            </span>
-            <span className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase">
-              Portfolio
-            </span>
-          </div>
-        </Link>
-
-        {!isDashboard ? (
-          <>
-            <div className="hidden gap-8 text-slate-300 md:flex">
-              <a href="#features" className="hover:text-white">
-                {lang === "th" ? "ฟีเจอร์" : "Features"}
-              </a>
-
-              <a href="#pricing" className="hover:text-white">
-                {lang === "th" ? "ราคา" : "Pricing"}
-              </a>
-
-              <Link href="/vip" className="hover:text-white">
-                VIP
-              </Link>
-
-              <a href="#contact" className="hover:text-white">
-                {lang === "th" ? "ติดต่อ" : "Contact"}
-              </a>
+      <div className="mx-auto max-w-7xl px-4 md:px-8">
+        
+        {/* แถวบน: โลโก้, ภาษา และปุ่มออกจากระบบ/ล็อกอิน */}
+        <div className="flex h-20 items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-3 group">
+            <img
+              src="https://dqnrixhptlgceimxdvwo.supabase.co/storage/v1/object/public/slips/S__113950723.jpg"
+              alt="TARO Portfolio Logo"
+              className="w-10 h-10 rounded-xl object-cover border border-indigo-500/30 shadow-md group-hover:scale-105 transition"
+            />
+            <div className="flex flex-col">
+              <span className="text-lg font-extrabold tracking-wider text-white leading-tight">
+                TARO
+              </span>
+              <span className="text-[10px] font-semibold text-slate-400 tracking-widest uppercase">
+                Portfolio
+              </span>
             </div>
+          </Link>
 
+          {!isDashboard ? (
             <div className="flex items-center gap-3">
               {setLang && (
                 <div className="flex overflow-hidden rounded-lg border border-slate-800 bg-slate-900 shadow-xs">
@@ -113,64 +94,20 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
                   </button>
                 </div>
               )}
-
               <Link
                 href="/login"
-                className="rounded-lg border border-slate-600 px-5 py-2 text-white hover:bg-slate-800"
+                className="rounded-lg border border-slate-600 px-4 py-2 text-xs md:text-sm text-white hover:bg-slate-800"
               >
                 Login
               </Link>
-
               <Link
                 href="/register"
-                className="rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-xs md:text-sm font-semibold text-white hover:bg-blue-700"
               >
                 Get Started
               </Link>
             </div>
-          </>
-        ) : (
-          <>
-            <div className="hidden gap-6 text-slate-300 md:flex items-center">
-              <Link href="/dashboard" className="hover:text-white">
-                {lang === "th" ? "แดชบอร์ด" : "Dashboard"}
-              </Link>
-
-              <Link href="/portfolio" className="hover:text-white">
-                {lang === "th" ? "พอร์ตฟิลิปส์" : "Portfolio"}
-              </Link>
-
-              {/* 🌟 ปรับลิงก์ให้ตรงกับโฟลเดอร์ /live-stock-news */}
-              <Link href="/live-stock-news" className="hover:text-white flex items-center gap-1.5">
-                <span>📰</span> {lang === "th" ? "วิเคราะห์ข่าวหุ้นเรียลไทม์" : "Live Stock News"}
-              </Link>
-
-              {/* เมนู VIP หลัก พาไปหน้าสมัคร/ดูข้อมูล VIP */}
-              <Link href="/vip" className="hover:text-white">
-                VIP
-              </Link>
-
-              {/* ปุ่มเข้าสู่ระบบ VIP */}
-              <Link 
-                href="/vip/dashboard" 
-                className="rounded-lg bg-purple-600/20 border border-purple-500/40 px-3 py-1.5 text-xs font-bold text-purple-300 hover:bg-purple-600 hover:text-white transition"
-              >
-                {lang === "th" ? "เข้าสู่ระบบVIP" : "VIP Login"}
-              </Link>
-
-              {/* เมนูสร้างรายได้ Affiliate */}
-              <Link 
-                href="/affiliate-program" 
-                className="hover:text-purple-400 font-semibold text-purple-300 text-sm"
-              >
-                {lang === "th" ? "สร้างรายได้ (Affiliate)" : "Affiliate"}
-              </Link>
-
-              <Link href="/settings" className="hover:text-white">
-                {lang === "th" ? "ตั้งค่า" : "Settings"}
-              </Link>
-            </div>
-
+          ) : (
             <div className="flex items-center gap-3">
               {setLang && (
                 <div className="flex overflow-hidden rounded-lg border border-slate-800 bg-slate-900 shadow-xs">
@@ -192,15 +129,53 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
                   </button>
                 </div>
               )}
-
               <button
                 onClick={handleLogout}
-                className="rounded-lg bg-red-600 px-5 py-2 text-white hover:bg-red-700 cursor-pointer"
+                className="rounded-lg bg-red-600 px-4 py-2 text-xs md:text-sm text-white hover:bg-red-700 cursor-pointer font-medium"
               >
                 {lang === "th" ? "ออกจากระบบ" : "Logout"}
               </button>
             </div>
-          </>
+          )}
+        </div>
+
+        {/* แถวล่าง: เมนูนำทาง (ทำเป็นแถบเลื่อนซ้าย-ขวาได้บนมือถือ และเรียงปกติบนคอม) */}
+        {isDashboard && (
+          <div className="flex items-center gap-6 overflow-x-auto border-t border-slate-800/80 py-3 text-sm text-slate-300 no-scrollbar">
+            <Link href="/dashboard" className="whitespace-nowrap hover:text-white transition">
+              {lang === "th" ? "แดชบอร์ด" : "Dashboard"}
+            </Link>
+
+            <Link href="/portfolio" className="whitespace-nowrap hover:text-white transition">
+              {lang === "th" ? "พอร์ตฟิลิปส์" : "Portfolio"}
+            </Link>
+
+            <Link href="/live-stock-news" className="whitespace-nowrap hover:text-white transition flex items-center gap-1.5">
+              <span>📰</span> {lang === "th" ? "วิเคราะห์ข่าวหุ้นเรียลไทม์" : "Live Stock News"}
+            </Link>
+
+            <Link href="/vip" className="whitespace-nowrap hover:text-white transition">
+              VIP
+            </Link>
+
+            <Link 
+              href="/vip/dashboard" 
+              className="whitespace-nowrap rounded-lg bg-purple-600/20 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-600 hover:text-white transition"
+            >
+              {lang === "th" ? "เข้าสู่ระบบVIP" : "VIP Login"}
+            </Link>
+
+            <Link 
+              href="/affiliate-program" 
+              className="whitespace-nowrap hover:text-purple-400 font-semibold text-purple-300 text-sm transition"
+            >
+              {lang === "th" ? "สร้างรายได้ (Affiliate)" : "Affiliate"}
+            </Link>
+
+            <Link href="/settings" className="whitespace-nowrap hover:text-white transition">
+              {lang === "th" ? "ตั้งค่า" : "Settings"}
+            </Link>
+          </div>
         )}
 
       </div>
