@@ -484,7 +484,6 @@ export default function Dashboard() {
     <>
       <Navbar lang={lang} setLang={setLang} />
 
-      {/* 🌟 คืนค่าหน้าจอให้เป็นปกติ รองรับ Responsive บนมือถือสมบูรณ์ */}
       <main className="min-h-screen bg-slate-950 text-slate-100">
         <div className="mx-auto max-w-7xl px-4 py-8 md:p-10">
           
@@ -566,15 +565,16 @@ export default function Dashboard() {
                   <p className="text-center text-slate-500 py-12 text-sm">{t.noChartData}</p>
                 </div>
               ) : (
-                <div className="h-64 md:h-[350px] w-full">
+                // 🌟 ปรับความสูงและขนาด PieChart ให้แสดงผลเต็มวงสวยงาม ไม่โดนตัดบนมือถือ
+                <div className="h-72 md:h-[350px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={chartData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={90}
+                        innerRadius={45}
+                        outerRadius={75}
                         paddingAngle={4}
                         dataKey="value"
                       >
@@ -589,7 +589,7 @@ export default function Dashboard() {
                           t.valueLabel,
                         ]}
                       />
-                      <Legend wrapperStyle={{ color: "#cbd5e1" }} />
+                      <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: "11px" }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
