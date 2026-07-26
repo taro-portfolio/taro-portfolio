@@ -25,7 +25,7 @@ export default function RootLayout({
     <html lang="th">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="https://www.google.com/s2/favicons?domain=google.com&sz=128" />
+        <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
