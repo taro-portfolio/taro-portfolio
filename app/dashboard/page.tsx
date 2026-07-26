@@ -558,6 +558,7 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* 🌟 ส่วนกราฟ Asset Allocation (แยกการแสดงผลระหว่างมือถือและคอมพิวเตอร์) */}
             <div className="rounded-2xl bg-slate-900/60 p-5 md:p-8 border border-slate-800/80 shadow-xl flex flex-col justify-between">
               <h2 className="mb-4 text-xl md:text-2xl font-bold text-white">{t.assetAllocation}</h2>
               {chartData.length === 0 ? (
@@ -565,34 +566,75 @@ export default function Dashboard() {
                   <p className="text-center text-slate-500 py-12 text-sm">{t.noChartData}</p>
                 </div>
               ) : (
-                // 🌟 ปรับความสูงและขนาด PieChart ให้แสดงผลเต็มวงสวยงาม ไม่โดนตัดบนมือถือ
-                <div className="h-72 md:h-[350px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={75}
-                        paddingAngle={4}
-                        dataKey="value"
-                      >
-                        {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "0.75rem", color: "#f8fafc" }}
-                        formatter={(val: any) => [
-                          `${currencySymbol(currency)}${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                          t.valueLabel,
-                        ]}
-                      />
-                      <Legend wrapperStyle={{ color: "#cbd5e1", fontSize: "11px" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <>
+                  {/* สำหรับคอมพิวเตอร์ (Desktop) ใช้ Recharts ปกติ */}
+                  <div className="hidden md:block h-[350px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={chartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={90}
+                          paddingAngle={4}
+                          dataKey="value"
+                        >
+                          {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "0.75rem", color: "#f8fafc" }}
+                          formatter={(val: any) => [
+                            `${currencySymbol(currency)}${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                            t.valueLabel,
+                          ]}
+                        />
+                        <Legend wrapperStyle={{ color: "#cbd5e1" }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* สำหรับมือถือ (Mobile) ย่อวงกลมและจัดเรียงรายชื่อหุ้นด้านล่างเป็นระเบียบ */}
+                  <div className="block md:hidden flex flex-col items-center">
+                    <div className="h-52 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={chartData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={40}
+                            outerRadius={65}
+                            paddingAngle={4}
+                            dataKey="value"
+                          >
+                            {chartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "0.75rem", color: "#f8fafc" }}
+                            formatter={(val: any) => [
+                              `${currencySymbol(currency)}${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                              t.valueLabel,
+                            ]}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 w-full px-2">
+                      {chartData.map((entry, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }}></span>
+                          <span className="text-[11px] text-slate-300 truncate">{entry.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 
