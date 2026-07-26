@@ -5,14 +5,14 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TARO PORTFOLIO",
-  description: "แอพติดตามพอร์ตหุ้นและการลงทุน TARO PORTFOLIO",
+  title: "Taro Portfolio Tracker",
+  description: "แอปติดตามพอร์ตหุ้นและการลงทุน Taro Portfolio",
   manifest: "/manifest.json",
   themeColor: "#020617",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TARO PORTFOLIO",
+    title: "Taro Portfolio",
   },
 };
 
@@ -28,8 +28,8 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        {/* 🌟 บังคับให้มือถือแสดงผลเต็มจอแบบเดสก์ท็อป */}
-        <meta name="viewport" content="width=1200" />
+        {/* 🌟 บังคับความกว้างหน้าจอให้แสดงผลแบบคอมพิวเตอร์ (Desktop View) บนมือถือ */}
+        <meta name="viewport" content="width=1200, initial-scale=0.3, maximum-scale=5.0, user-scalable=yes" />
       </head>
       <body className={inter.className}>{children}</body>
     </html>
