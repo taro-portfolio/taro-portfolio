@@ -263,6 +263,25 @@ export default function Dashboard() {
     initDashboard();
   }, [initDashboard]);
 
+  // 🌟 ฟังก์ชันตรวจสอบสิทธิ์แอดมินก่อนเข้าหน้าแอดมิน
+  async function handleAdminAccess() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert("กรุณาเข้าสู่ระบบก่อน");
+      router.push("/login");
+      return;
+    }
+
+    // กำหนดอีเมลแอดมินของคุณที่นี่ (เปลี่ยนเป็นอีเมลจริงของคุณ)
+    const adminEmails = ["aflanos001@gmail.com", "admin@taro.com"]; 
+
+    if (adminEmails.includes(user.email ?? "")) {
+      router.push("/admin/login");
+    } else {
+      alert("❌ สำหรับบัญชีแอดมินเท่านั้น VIP ท่าอื่นไม่สามารถเข้าถึงได้");
+    }
+  }
+
   async function handleAddUsWatchlist(e: React.FormEvent) {
     e.preventDefault();
     if (!newUsInput.trim()) return;
@@ -433,7 +452,7 @@ export default function Dashboard() {
           {
             name: `${t.cashLabel} (${totalPortfolioValue > 0 ? ((mainCash / totalPortfolioValue) * 100).toFixed(1) : 0}%)`,
             value: Number(mainCash.toFixed(2)),
-            color: "#065f46", // 🌟 เปลี่ยนสีเงินสดในกราฟเป็นสีเขียวเข้ม (Emerald/Green dark)
+            color: "#065f46", 
           },
         ]
       : []),
@@ -510,7 +529,6 @@ export default function Dashboard() {
           <div className="mt-6 md:mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             <div className="flex flex-col gap-4 md:gap-6 justify-between">
-              {/* 🌟 เปลี่ยนการ์ดเงินสดเป็นธีมสีเขียวเข้มพรีเมียม */}
               <div className="rounded-2xl bg-gradient-to-br from-emerald-950/60 via-slate-900/80 to-slate-900 p-5 md:p-6 border border-emerald-500/30 shadow-xl flex-1 flex flex-col justify-center">
                 <p className="text-xs md:text-sm font-medium text-emerald-400">{t.cash}</p>
                 <h2 className="mt-2 text-2xl md:text-3xl font-extrabold text-white">
@@ -908,7 +926,17 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="mt-16 mb-8 flex flex-col items-center justify-center border-t border-slate-800/80 pt-8">
+          {/* 🌟 ปุ่ม AD TARO ขนาดเล็กมากๆ (Text เล็ก จางๆ) อยู่มุมขวาล่างเหนือปุ่ม Reset */}
+          <div className="mt-8 flex justify-end">
+            <button
+              onClick={handleAdminAccess}
+              className="text-[9px] text-slate-600 hover:text-slate-400 tracking-widest uppercase transition opacity-40 hover:opacity-100 cursor-pointer"
+            >
+              AD TARO
+            </button>
+          </div>
+
+          <div className="mt-2 mb-8 flex flex-col items-center justify-center border-t border-slate-800/80 pt-8">
             <button
               onClick={handleResetAllData}
               className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-6 py-3 text-xs md:text-sm font-bold text-rose-400 hover:bg-rose-500/20 active:scale-95 transition cursor-pointer shadow-lg"
