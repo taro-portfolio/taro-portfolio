@@ -28,10 +28,25 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        {/* 🌟 บังคับความกว้างหน้าจอให้แสดงผลแบบคอมพิวเตอร์ (Desktop View) บนมือถือ */}
-        <meta name="viewport" content="width=1200, initial-scale=0.3, maximum-scale=5.0, user-scalable=yes" />
+        {/* 🌟 ล็อคขนาด Viewport ให้กว้าง 1200px แบบหน้าจอคอม */}
+        <meta name="viewport" content="width=1200, user-scalable=yes" />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {children}
+        {/* 🌟 สคริปต์เสริมช่วยปรับหน้าจอมือถือให้แสดงผลแบบเดสก์ท็อปอัตโนมัติ */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (window.innerWidth < 1024) {
+                var mv = document.querySelector('meta[name="viewport"]');
+                if (mv) {
+                  mv.content = 'width=1200, initial-scale=' + (window.innerWidth / 1200) + ', user-scalable=yes';
+                }
+              }
+            `,
+          }}
+        />
+      </body>
     </html>
   );
 }
