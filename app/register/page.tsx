@@ -19,13 +19,27 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
-  // ดึงรหัสแนะนำจาก URL (เช่น ?ref=AF20260000001) ตอนโหลดหน้าเว็บ
+  // 🌟 ดึงรหัสแนะนำจาก URL และบันทึกยอดคลิกแบบเรียลไทม์ทันทีที่เปิดหน้าเว็บ
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");
+
+    async function trackAffiliateClick(code: string) {
+      try {
+        // บันทึกสถิติการคลิกลงตาราง affiliate_clicks แบบเรียลไทม์ทันที
+        await supabase.from("affiliate_clicks").insert({
+          referral_code: code,
+          created_at: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Error recording affiliate click:", err);
+      }
+    }
+
     if (ref) {
       setRefCode(ref);
       localStorage.setItem("referred_by_code", ref);
+      trackAffiliateClick(ref); // เรียกใช้งานฟังก์ชันบันทึกคลิก
     } else {
       const savedRef = localStorage.getItem("referred_by_code");
       if (savedRef) {
