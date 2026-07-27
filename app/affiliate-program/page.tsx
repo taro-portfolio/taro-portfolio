@@ -23,7 +23,7 @@ export default function AffiliatePage() {
   const [registeredReferrals, setRegisteredReferrals] = useState(0);
   const [vipReferrals, setVipReferrals] = useState(0);
 
-  // รายชื่อสมาชิกที่แนะนำมา
+  // รายชื่อสมาชิกที่แนะนำมา (รวมทั้งหมด ทั้งฟรีและ VIP)
   const [referredList, setReferredList] = useState<any[]>([]);
 
   // ข้อมูลสำหรับฟอร์มถอนเงิน
@@ -102,7 +102,6 @@ export default function AffiliatePage() {
       .eq("id", user.id)
       .single();
 
-    // 🌟 ป้องกันเข้มงวด: หากไม่พบข้อมูลโปรไฟล์ หรือไม่ได้เป็น VIP ให้ดีดกลับไปหน้า /vip ทันที
     if (!profile || !profile.is_vip) {
       router.replace("/vip");
       return;
@@ -123,20 +122,30 @@ export default function AffiliatePage() {
       setReferralLink(`${baseUrl}/register?ref=${user.id}`);
     }
 
-    // ดึงสถิติสมาชิกที่สมัครผ่านลิงก์
+    // 🌟 ดึงรายชื่อสมาชิกทั้งหมดที่มีการกรอกรหัสแนะนำตรงกับ referral_code ของผู้ใช้ หรือตรงกับ user.id
     try {
-      const { data: referredUsers } = await supabase
+      let query = supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, is_vip, vip_expires_at, created_at, referred_by")
-        .or(`referred_by.eq.${code},referred_by.eq.${user.id}`)
-        .order("created_at", { ascending: false });
+        .select("id, email, first_name, last_name, is_vip, vip_expires_at, created_at, referred_by");
+
+      if (code) {
+        query = query.or(`referred_by.eq.${code},referred_by.eq.${user.id}`);
+      } else {
+        query = query.eq("referred_by", user.id);
+      }
+
+      const { data: referredUsers, error: refError } = await query.order("created_at", { ascending: false });
+
+      if (refError) {
+        console.error("Error fetching referred users:", refError);
+      }
 
       if (referredUsers) {
         setReferredList(referredUsers);
-        setRegisteredReferrals(referredUsers.length);
+        setRegisteredReferrals(referredUsers.length); // นับจำนวนสมาชิกทั้งหมด (รวมทั้งทั่วไปและ VIP)
 
-        const vipCount = referredUsers.filter((u) => u.is_vip).length;
-        setVipReferrals(vipCount);
+        const vipCount = referredUsers.filter((u) => Boolean(u.is_vip)).length;
+        setVipReferrals(vipCount); // นับเฉพาะที่เป็น VIP
       }
     } catch (err) {
       console.error("Error fetching referrals:", err);
@@ -144,10 +153,17 @@ export default function AffiliatePage() {
 
     // ดึงจำนวนคลิกเข้าชม
     try {
-      const { count: clicksCount } = await supabase
+      let clickQuery = supabase
         .from("affiliate_clicks")
-        .select("*", { count: "exact", head: true })
-        .or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
+        .select("*", { count: "exact", head: true });
+
+      if (code) {
+        clickQuery = clickQuery.or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
+      } else {
+        clickQuery = clickQuery.eq("referrer_id", user.id);
+      }
+
+      const { count: clicksCount } = await clickQuery;
 
       if (clicksCount !== null) {
         setTotalClicks(clicksCount);
@@ -175,8 +191,23 @@ export default function AffiliatePage() {
     setLoading(false);
   }, [router]);
 
+  // 🌟 เปิดระบบ Realtime คอยอัปเดตข้อมูลอัตโนมัติทันที
   useEffect(() => {
     fetchAffiliateData();
+
+    const channel = supabase
+      .channel("realtime-affiliate-page")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        fetchAffiliateData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "affiliate_clicks" }, () => {
+        fetchAffiliateData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchAffiliateData]);
 
   const handleCopy = () => {
@@ -210,7 +241,6 @@ export default function AffiliatePage() {
       return;
     }
 
-    // 🌟 กล่องยืนยันพร้อมคำเตือนขนาดใหญ่ตามต้องการ
     const confirmMessage = lang === "th"
       ? `🚨 คำเตือนสำคัญ:\nบัญชีผู้รับเงิน และชื่อสมาชิกจะต้องตรงกันเท่านั้น จึงจะอนุมัติถอนเงินได้!\nหากไม่ตรงจะถูกปฏิเสธ และระบบจะไม่คืนคอมมิชชันที่กดถอนในรอบนั้นๆ\n\nยืนยันการถอนเงินจำนวน ${amountNum.toLocaleString()} บาท ใช่หรือไม่?`
       : `🚨 IMPORTANT WARNING:\nThe bank account name must match the member's name exactly. Otherwise, the withdrawal will be rejected and commissions for this round will NOT be refunded.\n\nConfirm withdrawal of ${amountNum.toLocaleString()} THB?`;
@@ -359,7 +389,7 @@ export default function AffiliatePage() {
               <h2 className="text-3xl font-black text-white mt-2">{totalClicks.toLocaleString()}</h2>
             </div>
             <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg">
-              <p className="text-sm text-slate-400">{lang === "th" ? "สมาชิกที่สมัครผ่านลิงก์" : "Registered Referrals"}</p>
+              <p className="text-sm text-slate-400">{lang === "th" ? "สมาชิกที่สมัครทั้งหมด" : "Registered Referrals"}</p>
               <h2 className="text-3xl font-black text-sky-400 mt-2">{registeredReferrals.toLocaleString()}</h2>
             </div>
             <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg">
@@ -517,7 +547,7 @@ export default function AffiliatePage() {
 
             {referredList.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-800 p-12 text-center text-slate-500 text-sm bg-slate-950/40">
-                {lang === "th" ? "ยังไม่มีสมาชิกสมัครผ่านลิงก์แนะนำของคุณ" : "No referrals yet."}
+                {lang === "th" ? "ยังไม่มีสมาชิกที่ใช้รหัสแนะนำของคุณ" : "No referrals yet."}
               </div>
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/50">

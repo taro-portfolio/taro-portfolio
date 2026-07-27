@@ -26,7 +26,6 @@ export default function RegisterPage() {
 
     async function trackAffiliateClick(code: string) {
       try {
-        // บันทึกสถิติการคลิกลงตาราง affiliate_clicks แบบเรียลไทม์ทันที
         await supabase.from("affiliate_clicks").insert({
           referral_code: code,
           created_at: new Date().toISOString()
@@ -39,7 +38,7 @@ export default function RegisterPage() {
     if (ref) {
       setRefCode(ref);
       localStorage.setItem("referred_by_code", ref);
-      trackAffiliateClick(ref); // เรียกใช้งานฟังก์ชันบันทึกคลิก
+      trackAffiliateClick(ref);
     } else {
       const savedRef = localStorage.getItem("referred_by_code");
       if (savedRef) {
@@ -98,14 +97,13 @@ export default function RegisterPage() {
             phone: phone.trim(),
             address: address.trim(),
             name_locked: true,
-            referred_by: finalRefCode || null, // ฝังรหัสผู้แนะนำทันทีแม้จะเป็นสมาชิกฟรี
+            referred_by: finalRefCode || null,
           })
           .eq("id", user.id);
 
         if (profileError) {
           console.error("Profile update error:", profileError.message);
         } else {
-          // ลบข้อมูล ref ออกจากเครื่องหลังบันทึกเสร็จ
           localStorage.removeItem("referred_by_code");
         }
       }
@@ -132,10 +130,21 @@ export default function RegisterPage() {
           กรอกข้อมูลจริงเพื่อความถูกต้องและปลอดภัยในการใช้งานระบบพอร์ต
         </p>
 
-        {/* แสดงแถบแจ้งเตือนหากสมัครผ่านลิงก์แนะนำเพื่อน */}
+        {/* 🌟 ล็อกรหัสแนะนำไว้กับลิงก์ แสดงผลแบบ Read-only ป้องกันการแก้ไข */}
         {refCode && (
-          <div className="mb-6 rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3 text-center text-xs text-purple-300 font-semibold">
-            ✨ คุณกำลังสมัครสมาชิกผ่านลิงก์แนะนำเพื่อน (รหัสผู้แนะนำ: <span className="text-white font-mono">{refCode}</span>)
+          <div className="mb-6 rounded-2xl border border-purple-500/30 bg-purple-950/20 p-4 space-y-1.5">
+            <label className="block text-xs font-bold text-purple-400 uppercase tracking-wide">
+              ✨ รหัสผู้แนะนำ (ล็อกอัตโนมัติจากลิงก์เชิญ)
+            </label>
+            <input
+              type="text"
+              readOnly
+              value={refCode}
+              className="w-full bg-slate-900 border border-purple-500/40 rounded-xl px-4 py-3 text-sm text-purple-300 font-mono font-bold cursor-not-allowed select-none shadow-inner"
+            />
+            <p className="text-[11px] text-slate-400">
+              * ระบบบันทึกรหัสผู้แนะนำให้ท่านอัตโนมัติ ไม่สามารถเปลี่ยนแปลงได้
+            </p>
           </div>
         )}
 
@@ -267,7 +276,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* ปุ่มสมัครสมาชิก (จะกดได้ก็ต่อเมื่อกดยอมรับข้อตกลงแล้วเท่านั้น) */}
+        {/* ปุ่มสมัครสมาชิก */}
         <button
           type="submit"
           disabled={!agreedToTerms || loading}
