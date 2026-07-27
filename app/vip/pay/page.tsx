@@ -13,6 +13,9 @@ export default function VipPaymentPage() {
   const [uploading, setUploading] = useState(false);
   const [lang, setLang] = useState<Language>("th");
 
+  // State สำหรับควบคุมการเปิด/ปิดแสดง QR Code
+  const [showQrCode, setShowQrCode] = useState(false);
+
   const planPrices: Record<string, number> = {
     "99": 99,
     "499": 499,
@@ -78,7 +81,7 @@ export default function VipPaymentPage() {
         <div className="rounded-3xl border border-indigo-500/30 bg-[#0c101d] p-8 shadow-2xl space-y-6">
           <div className="text-center">
             <h1 className="text-2xl font-extrabold text-white mb-2">💎 แจ้งชำระเงินแพ็กเกจ VIP</h1>
-            <p className="text-xs text-slate-400">เลือกแพ็กเกจ สแกน QR Code ชำระเงิน และแนบสลิปโอนเงินเพื่อยืนยัน</p>
+            <p className="text-xs text-slate-400">เลือกแพ็กเกจ กดแสดง QR Code เพื่อชำระเงิน และแนบสลิปโอนเงินเพื่อยืนยัน</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -86,7 +89,7 @@ export default function VipPaymentPage() {
             <div className="grid grid-cols-3 gap-4">
               <button
                 type="button"
-                onClick={() => setSelectedPlan("99")}
+                onClick={() => { setSelectedPlan("99"); setShowQrCode(false); }}
                 className={`p-4 rounded-2xl border text-center transition cursor-pointer ${
                   selectedPlan === "99" ? "border-indigo-500 bg-indigo-600/20 text-white shadow-lg" : "border-slate-800 bg-slate-900 text-slate-400"
                 }`}
@@ -96,7 +99,7 @@ export default function VipPaymentPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedPlan("499")}
+                onClick={() => { setSelectedPlan("499"); setShowQrCode(false); }}
                 className={`p-4 rounded-2xl border text-center transition cursor-pointer ${
                   selectedPlan === "499" ? "border-indigo-500 bg-indigo-600/20 text-white shadow-lg" : "border-slate-800 bg-slate-900 text-slate-400"
                 }`}
@@ -106,7 +109,7 @@ export default function VipPaymentPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedPlan("899")}
+                onClick={() => { setSelectedPlan("899"); setShowQrCode(false); }}
                 className={`p-4 rounded-2xl border text-center transition cursor-pointer ${
                   selectedPlan === "899" ? "border-indigo-500 bg-indigo-600/20 text-white shadow-lg" : "border-slate-800 bg-slate-900 text-slate-400"
                 }`}
@@ -116,22 +119,38 @@ export default function VipPaymentPage() {
               </button>
             </div>
 
-            {/* ส่วนแสดง QR Code สำหรับสแกนจ่าย */}
+            {/* ส่วนปุ่มกดเพื่อแสดง QR Code */}
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 text-center space-y-4 shadow-inner">
-              <h3 className="text-sm font-bold text-slate-200">
-                สแกน QR Code เพื่อชำระเงินจำนวน <span className="text-indigo-400 text-lg font-black">฿{planPrices[selectedPlan]}</span>
-              </h3>
-              <div className="flex justify-center">
-                {/* QR Code จริงจาก Supabase Storage */}
-                <img
-                  src="https://dqnrixhptlgceimxdvwo.supabase.co/storage/v1/object/public/slips/S__113950724.jpg"
-                  alt="PromptPay QR Code"
-                  className="w-44 h-44 object-contain rounded-xl border border-slate-700 bg-white p-2 shadow-md"
-                />
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-slate-200">
+                  ยอดชำระแพ็กเกจ: <span className="text-indigo-400 text-lg font-black">฿{planPrices[selectedPlan]}</span>
+                </span>
+                
+                {/* ปุ่มกดเปิด-ปิด QR Code */}
+                <button
+                  type="button"
+                  onClick={() => setShowQrCode(!showQrCode)}
+                  className="rounded-xl bg-indigo-600/20 border border-indigo-500/40 px-4 py-2 text-xs font-bold text-indigo-300 hover:bg-indigo-600 hover:text-white transition cursor-pointer"
+                >
+                  {showQrCode ? "ซ่อน QR Code ✖" : "📱 แสดง QR Code ชำระเงิน"}
+                </button>
               </div>
-              <p className="text-[11px] text-slate-400">
-                พร้อมเพย์ / บัญชีธนาคาร: บจก. ของคุณ (กสิกรไทย)
-              </p>
+
+              {/* แสดง QR Code ก็ต่อเมื่อกดปุ่ม (showQrCode เป็น true) */}
+              {showQrCode && (
+                <div className="pt-3 space-y-3 animate-fadeIn">
+                  <div className="flex justify-center">
+                    <img
+                      src="https://dqnrixhptlgceimxdvwo.supabase.co/storage/v1/object/public/slips/S__113950724.jpg"
+                      alt="PromptPay QR Code"
+                      className="w-44 h-44 object-contain rounded-xl border border-slate-700 bg-white p-2 shadow-md"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    พร้อมเพย์ / บัญชีธนาคาร: บจก. ของคุณ (กสิกรไทย)
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* ช่องอัปโหลดสลิป พร้อมหมายเหตุเตือนทางกฎหมาย */}
@@ -142,7 +161,7 @@ export default function VipPaymentPage() {
               
               {/* กล่องหมายเหตุเตือน */}
               <div className="rounded-xl bg-rose-500/10 border border-rose-500/30 p-3 text-[11px] text-rose-300 leading-relaxed">
-                ⚠️ **คำเตือน:** กรุณาสส่งสลิปโอนเงินจริงเท่านั้น หากมีการตรวจพบการปลอมแปลงสลิปหรือเจตนาฉ้อโกง ทางระบบจะดำเนินการทางกฎหมายและดำเนินคดีตามกฎหมายสูงสุดทันที
+                ⚠️ **คำเตือน:** กรุณาส่งสลิปโอนเงินจริงเท่านั้น หากมีการตรวจพบการปลอมแปลงสลิปหรือเจตนาฉ้อโกง ทางระบบจะดำเนินการทางกฎหมายและดำเนินคดีตามกฎหมายสูงสุดทันที
               </div>
 
               <input

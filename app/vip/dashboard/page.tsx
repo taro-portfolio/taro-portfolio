@@ -10,13 +10,19 @@ import { translations, Language } from "@/lib/i18n";
 export default function VipDashboardPage() {
   const router = useRouter();
   
-  const totalEarnings = 0;
-
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [lang, setLang] = useState<Language>("th");
   const t = translations[lang];
+
+  // State สำหรับเก็บข้อมูลสถิติแบบเรียลไทม์
+  const [stats, setStats] = useState({
+    totalEarnings: 0,
+    totalClicks: 0,
+    totalSignups: 0,
+    vipReferrals: 0
+  });
 
   const checkVipAccess = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -27,17 +33,39 @@ export default function VipDashboardPage() {
 
     setUserEmail(user.email || "");
 
-    const { data } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
-      .select("first_name, is_vip")
+      .select("first_name, is_vip, referral_code, affiliate_clicks")
       .eq("id", user.id)
       .single();
 
-    if (data && data.is_vip) {
-      setUserName(data.first_name || user.email?.split("@")[0] || "VIP Member");
-    } else {
+    // ป้องกันเข้มงวด: หากไม่พบข้อมูลโปรไฟล์หรือไม่ได้เป็น VIP ให้ดีดกลับไปหน้า /vip ทันที
+    if (!profile || !profile.is_vip) {
       router.replace("/vip");
+      return;
     }
+
+    setUserName(profile.first_name || user.email?.split("@")[0] || "VIP Member");
+
+    // ดึงข้อมูลผู้ที่สมัครผ่านรหัสแนะนำ (referral_code หรือ ID)
+    const refCode = profile.referral_code || user.id.substring(0, 8);
+    const { data: referrals } = await supabase
+      .from("profiles")
+      .select("is_vip")
+      .eq("referred_by", refCode);
+
+    const signupsCount = referrals ? referrals.length : 0;
+    const vipsCount = referrals ? referrals.filter((item) => item.is_vip).length : 0;
+    const clicksCount = profile.affiliate_clicks || 0;
+    const earnings = vipsCount * 300; // สมมติคอมมิชชัน 300 บาทต่อ VIP 1 คน
+
+    setStats({
+      totalEarnings: earnings,
+      totalClicks: clicksCount,
+      totalSignups: signupsCount,
+      vipReferrals: vipsCount
+    });
+
     setLoading(false);
   }, [router]);
 
@@ -50,7 +78,7 @@ export default function VipDashboardPage() {
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="flex items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-          <h1 className="text-xl font-semibold text-slate-300">{t.loading}</h1>
+          <h1 className="text-xl font-semibold text-slate-300">กำลังตรวจสอบสิทธิ์ VIP...</h1>
         </div>
       </main>
     );
@@ -82,37 +110,57 @@ export default function VipDashboardPage() {
             </div>
           </header>
 
-          <section className="mb-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* สถิติ 4 ช่องแบบเรียลไทม์ */}
+          <section className="mb-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              
+              {/* ช่องที่ 1: คอมมิชชันที่ทำได้ */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-3xl">💸</div>
                   <div>
                     <p className="text-sm text-slate-400">{lang === "th" ? "คอมมิชชันที่ทำได้" : "Total Commission Earned"}</p>
-                    <h2 className="text-3xl font-black text-white mt-1">฿{totalEarnings.toLocaleString()}</h2>
+                    <h2 className="text-2xl font-black text-white mt-1">฿{stats.totalEarnings.toLocaleString()}</h2>
                     <Link href="/affiliate-program" className="text-xs text-purple-400 font-semibold hover:text-purple-300 mt-1 inline-block">
                         {lang === "th" ? "ดูรายละเอียดการจ่ายเงิน →" : "View Payout Details →"}
                     </Link>
                   </div>
               </div>
+
+              {/* ช่องที่ 2: จำนวนคลิก Affiliate ทั้งหมด */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-sky-600/20 border border-sky-500/30 flex items-center justify-center text-3xl">🔗</div>
                   <div>
                     <p className="text-sm text-slate-400">{lang === "th" ? "จำนวนคลิก Affiliate ทั้งหมด" : "Total Affiliate Clicks"}</p>
-                    <h2 className="text-3xl font-black text-sky-400 mt-1">0</h2>
+                    <h2 className="text-2xl font-black text-sky-400 mt-1">{stats.totalClicks}</h2>
                     <Link href="/affiliate-program" className="text-xs text-sky-400 font-semibold hover:text-sky-300 mt-1 inline-block">
                         {lang === "th" ? "ดูสถิติเชิงลึก →" : "View Deep Analytics →"}
                     </Link>
                   </div>
               </div>
+
+              {/* ช่องที่ 3: สมัครสมาชิกสำเร็จ */}
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-3xl">👥</div>
+                  <div>
+                    <p className="text-sm text-slate-400">{lang === "th" ? "สมัครสมาชิกสำเร็จ" : "Total Signups"}</p>
+                    <h2 className="text-2xl font-black text-indigo-400 mt-1">{stats.totalSignups}</h2>
+                    <Link href="/affiliate-program" className="text-xs text-indigo-400 font-semibold hover:text-indigo-300 mt-1 inline-block">
+                        {lang === "th" ? "ดูรายชื่อผู้สมัคร →" : "View Signups List →"}
+                    </Link>
+                  </div>
+              </div>
+
+              {/* ช่องที่ 4: สมาชิก VIP ที่แนะนำสำเร็จ */}
                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-3xl">👥</div>
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-3xl">⭐</div>
                   <div>
                     <p className="text-sm text-slate-400">{lang === "th" ? "สมาชิก VIP ที่แนะนำสำเร็จ" : "Total VIP Referrals"}</p>
-                    <h2 className="text-3xl font-black text-emerald-400 mt-1">0</h2>
+                    <h2 className="text-2xl font-black text-emerald-400 mt-1">{stats.vipReferrals}</h2>
                     <Link href="/affiliate-program" className="text-xs text-emerald-400 font-semibold hover:text-emerald-300 mt-1 inline-block">
                         {lang === "th" ? "ดูรายชื่อผู้สมัคร →" : "View Referral List →"}
                     </Link>
                   </div>
               </div>
+
           </section>
 
           <section>

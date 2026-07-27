@@ -102,73 +102,73 @@ export default function AffiliatePage() {
       .eq("id", user.id)
       .single();
 
+    // 🌟 ป้องกันเข้มงวด: หากไม่พบข้อมูลโปรไฟล์ หรือไม่ได้เป็น VIP ให้ดีดกลับไปหน้า /vip ทันที
+    if (!profile || !profile.is_vip) {
+      router.replace("/vip");
+      return;
+    }
+
     let calculatedEarnings = 0;
 
-    if (profile) {
-      if (!profile.is_vip) {
-        router.replace("/vip/pay");
-        return;
+    const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+    setAccountName(fullName || user.email || "");
+    
+    const code = profile.referral_code || "";
+    setReferralCode(code);
+
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    if (code) {
+      setReferralLink(`${baseUrl}/register?ref=${code}`);
+    } else {
+      setReferralLink(`${baseUrl}/register?ref=${user.id}`);
+    }
+
+    // ดึงสถิติสมาชิกที่สมัครผ่านลิงก์
+    try {
+      const { data: referredUsers } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name, is_vip, vip_expires_at, created_at, referred_by")
+        .or(`referred_by.eq.${code},referred_by.eq.${user.id}`)
+        .order("created_at", { ascending: false });
+
+      if (referredUsers) {
+        setReferredList(referredUsers);
+        setRegisteredReferrals(referredUsers.length);
+
+        const vipCount = referredUsers.filter((u) => u.is_vip).length;
+        setVipReferrals(vipCount);
       }
-      const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
-      setAccountName(fullName || user.email || "");
-      
-      const code = profile.referral_code || "";
-      setReferralCode(code);
+    } catch (err) {
+      console.error("Error fetching referrals:", err);
+    }
 
-      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-      if (code) {
-        setReferralLink(`${baseUrl}/register?ref=${code}`);
-      } else {
-        setReferralLink(`${baseUrl}/register?ref=${user.id}`);
+    // ดึงจำนวนคลิกเข้าชม
+    try {
+      const { count: clicksCount } = await supabase
+        .from("affiliate_clicks")
+        .select("*", { count: "exact", head: true })
+        .or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
+
+      if (clicksCount !== null) {
+        setTotalClicks(clicksCount);
       }
+    } catch (err) {
+      console.error("Error fetching click count:", err);
+    }
 
-      // ดึงสถิติสมาชิกที่สมัครผ่านลิงก์
-      try {
-        const { data: referredUsers } = await supabase
-          .from("profiles")
-          .select("id, email, first_name, last_name, is_vip, vip_expires_at, created_at, referred_by")
-          .or(`referred_by.eq.${code},referred_by.eq.${user.id}`)
-          .order("created_at", { ascending: false });
+    // ดึงยอดรายได้สะสม
+    try {
+      const { data: commData } = await supabase
+        .from("commissions")
+        .select("amount")
+        .eq("user_id", user.id);
 
-        if (referredUsers) {
-          setReferredList(referredUsers);
-          setRegisteredReferrals(referredUsers.length);
-
-          const vipCount = referredUsers.filter((u) => u.is_vip).length;
-          setVipReferrals(vipCount);
-        }
-      } catch (err) {
-        console.error("Error fetching referrals:", err);
+      if (commData && commData.length > 0) {
+        calculatedEarnings = commData.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+        setTotalEarnings(calculatedEarnings);
       }
-
-      // ดึงจำนวนคลิกเข้าชม
-      try {
-        const { count: clicksCount } = await supabase
-          .from("affiliate_clicks")
-          .select("*", { count: "exact", head: true })
-          .or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
-
-        if (clicksCount !== null) {
-          setTotalClicks(clicksCount);
-        }
-      } catch (err) {
-        console.error("Error fetching click count:", err);
-      }
-
-      // ดึงยอดรายได้สะสม
-      try {
-        const { data: commData } = await supabase
-          .from("commissions")
-          .select("amount")
-          .eq("user_id", user.id);
-
-        if (commData && commData.length > 0) {
-          calculatedEarnings = commData.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-          setTotalEarnings(calculatedEarnings);
-        }
-      } catch (err) {
-        console.error("Error fetching total earnings:", err);
-      }
+    } catch (err) {
+      console.error("Error fetching total earnings:", err);
     }
 
     await checkWithdrawalRules(user.id, calculatedEarnings);
@@ -263,7 +263,7 @@ export default function AffiliatePage() {
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="flex items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-          <h1 className="text-xl font-semibold text-slate-300">{t.loading}</h1>
+          <h1 className="text-xl font-semibold text-slate-300">กำลังตรวจสอบสิทธิ์ VIP...</h1>
         </div>
       </main>
     );

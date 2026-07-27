@@ -131,6 +131,7 @@ export default function LiveStockNewsPage() {
         .eq("id", user.id)
         .single();
 
+      // ป้องกันเข้มงวด: หากไม่พบข้อมูลโปรไฟล์หรือไม่ได้เป็น VIP ให้ดีดกลับไปหน้า /vip ทันที
       if (!profile || !profile.is_vip) {
         router.replace("/vip");
         return;
@@ -298,7 +299,6 @@ export default function LiveStockNewsPage() {
                     <div className="border-t border-slate-800/80 pt-4 mt-2">
                       <div className="flex items-center gap-2 text-xs font-bold">
                         <span className="text-slate-400">🤖 AI Sentiment Analysis:</span>
-                        {/* 🌟 แสดงสีตามเงื่อนไข: เขียว (ดี), เหลือง (ทั่วไป), แดง (ร้าย) */}
                         <span className={`px-2.5 py-1 rounded-lg ${getSentimentBadgeStyle(news.sentiment)}`}>
                           {news.sentiment}
                         </span>
