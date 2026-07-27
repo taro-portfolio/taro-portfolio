@@ -45,19 +45,6 @@ export default function Dashboard() {
   const [newUsInput, setNewUsInput] = useState("");
   const [usPrices, setUsPrices] = useState<Record<string, { price: number; change: string; isUp: boolean }>>({});
 
-  // 🌟 Watchlist หุ้นไทย (TH)
-  const [thWatchlist, setThWatchlist] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("taro_th_watchlist");
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) { /* ignore */ }
-      }
-    }
-    return ["PTT", "ADVANC", "KBANK", "CPALL"];
-  });
-  const [newThInput, setNewThInput] = useState("");
-  const [thPrices, setThPrices] = useState<Record<string, { price: number; change: string; isUp: boolean }>>({});
-
   const [lang, setLang] = useState<Language>("th");
   const t = translations[lang];
 
@@ -66,12 +53,6 @@ export default function Dashboard() {
       localStorage.setItem("taro_us_watchlist", JSON.stringify(usWatchlist));
     }
   }, [usWatchlist]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("taro_th_watchlist", JSON.stringify(thWatchlist));
-    }
-  }, [thWatchlist]);
 
   function getTradingViewStyleLogo(symbol: string) {
     const upper = symbol.toUpperCase().trim();
@@ -87,10 +68,6 @@ export default function Dashboard() {
       AMD: "amd.com",
       INTC: "intel.com",
       COIN: "coinbase.com",
-      PTT: "pttplc.com",
-      ADVANC: "ais.th",
-      KBANK: "kasikornbank.com",
-      CPALL: "cpall.co.th",
     };
     const domain = customDomains[upper] || `${upper.toLowerCase()}.com`;
     return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
@@ -148,7 +125,7 @@ export default function Dashboard() {
     }
   }
 
-  const fetchWatchlistPrices = useCallback(async (usList: string[], thList: string[]) => {
+  const fetchWatchlistPrices = useCallback(async (usList: string[]) => {
     const usResults: Record<string, { price: number; change: string; isUp: boolean }> = {};
     for (const sym of usList) {
       const price = await getStockPrice(sym);
@@ -160,17 +137,6 @@ export default function Dashboard() {
       };
     }
     setUsPrices(usResults);
-
-    const thResults: Record<string, { price: number; change: string; isUp: boolean }> = {};
-    for (const sym of thList) {
-      const changeVal = (Math.random() * 2 - 1).toFixed(2);
-      thResults[sym] = {
-        price: Number((Math.random() * 50 + 10).toFixed(2)),
-        change: `${Number(changeVal) >= 0 ? "+" : ""}${changeVal}%`,
-        isUp: Number(changeVal) >= 0,
-      };
-    }
-    setThPrices(thResults);
   }, []);
 
   const fetchPrices = useCallback(async (portfolioList: any[]) => {
@@ -190,7 +156,7 @@ export default function Dashboard() {
     });
 
     setPrices(latestPrices);
-    await fetchWatchlistPrices(usWatchlist, thWatchlist);
+    await fetchWatchlistPrices(usWatchlist);
 
     setLastUpdatedTime(
       new Date().toLocaleTimeString(lang === "th" ? "th-TH" : "en-US", {
@@ -200,7 +166,7 @@ export default function Dashboard() {
       })
     );
     setRefreshingPrices(false);
-  }, [lang, usWatchlist, thWatchlist, fetchWatchlistPrices]);
+  }, [lang, usWatchlist, fetchWatchlistPrices]);
 
   const loadPortfolio = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -254,10 +220,10 @@ export default function Dashboard() {
       loadExchangeRate(),
       loadPortfolio(user.id),
       loadCash(user.id),
-      fetchWatchlistPrices(usWatchlist, thWatchlist),
+      fetchWatchlistPrices(usWatchlist),
     ]);
     setLoading(false);
-  }, [router, loadPortfolio, loadCash, fetchWatchlistPrices, usWatchlist, thWatchlist]);
+  }, [router, loadPortfolio, loadCash, fetchWatchlistPrices, usWatchlist]);
 
   useEffect(() => {
     initDashboard();
@@ -276,7 +242,7 @@ export default function Dashboard() {
     if (adminEmails.includes(user.email ?? "")) {
       router.push("/admin/login");
     } else {
-      alert("❌ สำหรับบัญชีแอดมินเท่านั้น VIP ท่าอื่นไม่สามารถเข้าถึงได้");
+      alert("❌ สำหรับบัญชีแอดมินเท่านั้น VIP ท่านอื่นไม่สามารถเข้าถึงได้");
     }
   }
 
@@ -291,33 +257,13 @@ export default function Dashboard() {
     const updated = [...usWatchlist, sym];
     setUsWatchlist(updated);
     setNewUsInput("");
-    await fetchWatchlistPrices(updated, thWatchlist);
+    await fetchWatchlistPrices(updated);
   }
 
   function handleRemoveUsWatchlist(symToRemove: string, e: React.MouseEvent) {
     e.stopPropagation();
     const updated = usWatchlist.filter(s => s !== symToRemove);
     setUsWatchlist(updated);
-  }
-
-  async function handleAddThWatchlist(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newThInput.trim()) return;
-    const sym = newThInput.toUpperCase().trim();
-    if (thWatchlist.includes(sym)) {
-      alert(lang === "th" ? "มีหุ้นนี้ในรายการติดตามแล้ว" : "Stock already in watchlist");
-      return;
-    }
-    const updated = [...thWatchlist, sym];
-    setThWatchlist(updated);
-    setNewThInput("");
-    await fetchWatchlistPrices(usWatchlist, updated);
-  }
-
-  function handleRemoveThWatchlist(symToRemove: string, e: React.MouseEvent) {
-    e.stopPropagation();
-    const updated = thWatchlist.filter(s => s !== symToRemove);
-    setThWatchlist(updated);
   }
 
   async function handleResetAllData() {
@@ -558,7 +504,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* 🌟 ส่วนกราฟ Asset Allocation (แยกการแสดงผลระหว่างมือถือและคอมพิวเตอร์) */}
+            {/* 🌟 ส่วนกราฟ Asset Allocation */}
             <div className="rounded-2xl bg-slate-900/60 p-5 md:p-8 border border-slate-800/80 shadow-xl flex flex-col justify-between">
               <h2 className="mb-4 text-xl md:text-2xl font-bold text-white">{t.assetAllocation}</h2>
               {chartData.length === 0 ? (
@@ -567,7 +513,6 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <>
-                  {/* สำหรับคอมพิวเตอร์ (Desktop) ใช้ Recharts ปกติ */}
                   <div className="hidden md:block h-[350px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -596,7 +541,6 @@ export default function Dashboard() {
                     </ResponsiveContainer>
                   </div>
 
-                  {/* สำหรับมือถือ (Mobile) ย่อวงกลมและจัดเรียงรายชื่อหุ้นด้านล่างเป็นระเบียบ */}
                   <div className="block md:hidden flex flex-col items-center">
                     <div className="h-52 w-full">
                       <ResponsiveContainer width="100%" height="100%">
@@ -856,105 +800,6 @@ export default function Dashboard() {
                         <span className="text-xs text-slate-400">{lang === "th" ? "ราคาปัจจุบัน" : "Price"}</span>
                         <div className="text-right">
                           <span className="text-sm font-bold text-white">${data.price.toFixed(2)}</span>
-                          <span className={`ml-2 text-xs font-semibold ${data.isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                            {data.change}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-6 md:mt-8 rounded-2xl bg-[#090d16] p-6 text-white shadow-xl border border-slate-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">⭐</span>
-                  <h2 className="text-xl md:text-2xl font-extrabold text-white">
-                    {lang === "th" ? "หุ้นที่ฉันติดตาม หุ้นไทย 🇹🇭" : "My Watchlist - Thai Stocks 🇹🇭"}
-                  </h2>
-                </div>
-                <p className="text-slate-400 text-xs md:text-sm mt-1">
-                  {lang === "th" ? "เพิ่มและติดตามราคาหุ้นไทยที่คุณสนใจ" : "Track Thai stocks."}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <form onSubmit={handleAddThWatchlist} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newThInput}
-                    onChange={(e) => setNewThInput(e.target.value)}
-                    placeholder={lang === "th" ? "พิมพ์ชื่อหุ้นไทย (เช่น PTT)" : "Enter Thai Symbol (e.g. PTT)"}
-                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs md:text-sm text-white uppercase focus:border-indigo-500 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs md:text-sm font-bold text-white hover:bg-indigo-500 transition cursor-pointer shadow-md"
-                  >
-                    {lang === "th" ? "+ เพิ่มหุ้น" : "+ Add"}
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {thWatchlist.length === 0 ? (
-              <p className="text-slate-500 text-center py-6 text-sm">
-                {lang === "th" ? "ยังไม่มีหุ้นไทยในรายการติดตาม" : "No Thai watchlist stocks."}
-              </p>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {thWatchlist.map((sym) => {
-                  const data = thPrices[sym] || { price: 0, change: "+0.00%", isUp: true };
-                  const logoUrl = getTradingViewStyleLogo(sym);
-
-                  return (
-                    <div
-                      key={sym}
-                      className="relative cursor-pointer rounded-2xl border border-slate-800 bg-[#0c101d] p-4 transition hover:border-indigo-500 hover:scale-[1.02] shadow-lg flex flex-col justify-between"
-                    >
-                      <button
-                        onClick={(e) => handleRemoveThWatchlist(sym, e)}
-                        className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:bg-rose-600 hover:text-white transition text-xs font-bold shadow"
-                        title="Remove"
-                      >
-                        ✕
-                      </button>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1.5 overflow-hidden border border-slate-700 shrink-0 shadow">
-                          <img
-                            src={logoUrl}
-                            alt={sym}
-                            className="h-full w-full object-contain"
-                            onError={(e) => {
-                              const target = e.target as HTMLElement;
-                              target.style.display = 'none';
-                              if (target.parentElement) {
-                                target.parentElement.innerText = sym.slice(0, 3);
-                                target.parentElement.style.color = "#ffffff";
-                                target.parentElement.style.fontWeight = "bold";
-                                target.parentElement.style.backgroundColor = getStockLogoColor(sym);
-                              }
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-base font-extrabold text-white">{sym}</span>
-                            <span className="rounded bg-slate-800 text-slate-300 px-1.5 py-0.5 text-[9px] font-bold">TH 🇹🇭</span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 font-medium">Thai Stock</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-between border-t border-slate-800/80 pt-3">
-                        <span className="text-xs text-slate-400">{lang === "th" ? "ราคาปัจจุบัน" : "Price"}</span>
-                        <div className="text-right">
-                          <span className="text-sm font-bold text-white">฿{data.price.toFixed(2)}</span>
                           <span className={`ml-2 text-xs font-semibold ${data.isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {data.change}
                           </span>

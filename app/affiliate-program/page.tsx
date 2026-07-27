@@ -18,6 +18,14 @@ export default function AffiliatePage() {
   const [referralLink, setReferralLink] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // สถิติต่างๆ
+  const [totalClicks, setTotalClicks] = useState(0);
+  const [registeredReferrals, setRegisteredReferrals] = useState(0);
+  const [vipReferrals, setVipReferrals] = useState(0);
+
+  // รายชื่อสมาชิกที่แนะนำมา
+  const [referredList, setReferredList] = useState<any[]>([]);
+
   // ข้อมูลสำหรับฟอร์มถอนเงิน
   const [bankName, setBankName] = useState("กสิกรไทย (KBANK)");
   const [accountNumber, setAccountNumber] = useState("");
@@ -31,7 +39,7 @@ export default function AffiliatePage() {
   const [withdrawalMessage, setWithdrawalMessage] = useState("");
   const [hasWithdrawnThisMonth, setHasWithdrawnThisMonth] = useState(false);
 
-  const checkWithdrawalRules = async (userId: string) => {
+  const checkWithdrawalRules = async (userId: string, currentEarnings: number) => {
     const today = new Date();
     const currentDate = today.getDate();
     const currentMonth = today.getMonth();
@@ -57,6 +65,13 @@ export default function AffiliatePage() {
           ? "🔒 คุณได้ทำรายการถอนเงินของเดือนนี้ไปแล้ว (จำกัดการถอน 1 ครั้งต่อเดือน)"
           : "🔒 You have already withdrawn for this month (Limit: 1 time per month)."
       );
+    } else if (currentEarnings < 300) {
+      setIsWithdrawOpen(false);
+      setWithdrawalMessage(
+        lang === "th"
+          ? "🔒 ยอดเงินสะสมไม่ถึง 300 บาท (ขั้นต่ำการถอน 300 บาท)"
+          : "🔒 Minimum withdrawal amount is 300 THB."
+      );
     } else if (!isDateAllowed) {
       setIsWithdrawOpen(false);
       setWithdrawalMessage(
@@ -68,8 +83,8 @@ export default function AffiliatePage() {
       setIsWithdrawOpen(true);
       setWithdrawalMessage(
         lang === "th"
-          ? "🟢 เปิดระบบถอนเงินรอบสิ้นเดือนแล้ว! (จำกัด 1 ครั้ง/เดือน | เงินเข้า 1-3 วันทำการ)"
-          : "🟢 Withdrawal open! (1 time/month | Funds arrive in 1-3 business days)"
+          ? "🟢 เปิดระบบถอนเงินรอบสิ้นเดือนแล้ว! (ขั้นต่ำ 300 บาท | จำกัด 1 ครั้ง/เดือน)"
+          : "🟢 Withdrawal open! (Min 300 THB | 1 time/month)"
       );
     }
   };
@@ -87,6 +102,8 @@ export default function AffiliatePage() {
       .eq("id", user.id)
       .single();
 
+    let calculatedEarnings = 0;
+
     if (profile) {
       if (!profile.is_vip) {
         router.replace("/vip/pay");
@@ -98,17 +115,65 @@ export default function AffiliatePage() {
       const code = profile.referral_code || "";
       setReferralCode(code);
 
-      const baseUrl = window.location.origin;
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
       if (code) {
         setReferralLink(`${baseUrl}/register?ref=${code}`);
       } else {
         setReferralLink(`${baseUrl}/register?ref=${user.id}`);
       }
+
+      // ดึงสถิติสมาชิกที่สมัครผ่านลิงก์
+      try {
+        const { data: referredUsers } = await supabase
+          .from("profiles")
+          .select("id, email, first_name, last_name, is_vip, vip_expires_at, created_at, referred_by")
+          .or(`referred_by.eq.${code},referred_by.eq.${user.id}`)
+          .order("created_at", { ascending: false });
+
+        if (referredUsers) {
+          setReferredList(referredUsers);
+          setRegisteredReferrals(referredUsers.length);
+
+          const vipCount = referredUsers.filter((u) => u.is_vip).length;
+          setVipReferrals(vipCount);
+        }
+      } catch (err) {
+        console.error("Error fetching referrals:", err);
+      }
+
+      // ดึงจำนวนคลิกเข้าชม
+      try {
+        const { count: clicksCount } = await supabase
+          .from("affiliate_clicks")
+          .select("*", { count: "exact", head: true })
+          .or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
+
+        if (clicksCount !== null) {
+          setTotalClicks(clicksCount);
+        }
+      } catch (err) {
+        console.error("Error fetching click count:", err);
+      }
+
+      // ดึงยอดรายได้สะสม
+      try {
+        const { data: commData } = await supabase
+          .from("commissions")
+          .select("amount")
+          .eq("user_id", user.id);
+
+        if (commData && commData.length > 0) {
+          calculatedEarnings = commData.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+          setTotalEarnings(calculatedEarnings);
+        }
+      } catch (err) {
+        console.error("Error fetching total earnings:", err);
+      }
     }
 
-    await checkWithdrawalRules(user.id);
+    await checkWithdrawalRules(user.id, calculatedEarnings);
     setLoading(false);
-  }, [router, lang]);
+  }, [router]);
 
   useEffect(() => {
     fetchAffiliateData();
@@ -124,22 +189,33 @@ export default function AffiliatePage() {
     e.preventDefault();
 
     if (!isWithdrawOpen) {
-      alert(lang === "th" ? "ไม่สามารถทำรายการถอนได้ในขณะนี้ (ตรวจสอบเงื่อนไขช่วงเวลาหรือการถอนครบ 1 ครั้งแล้ว)" : "Withdrawal is currently unavailable.");
+      alert(lang === "th" ? "ไม่สามารถทำรายการถอนได้ในขณะนี้ (ตรวจสอบเงื่อนไขยอดขั้นต่ำ 300 บาท, ช่วงเวลา หรือการถอนครบ 1 ครั้งแล้ว)" : "Withdrawal is currently unavailable.");
       return;
     }
 
-    if (!withdrawAmount || Number(withdrawAmount) <= 0) {
-      alert(lang === "th" ? "กรุณากรอกจำนวนเงินที่ต้องการถอนให้ถูกต้อง" : "Please enter a valid withdrawal amount.");
+    const amountNum = Number(withdrawAmount);
+
+    if (!withdrawAmount || amountNum < 300) {
+      alert(lang === "th" ? "⚠️ กำหนดขั้นต่ำการถอนเงิน 300 บาทขึ้นไปครับ" : "Minimum withdrawal amount is 300 THB.");
       return;
     }
 
-    if (Number(withdrawAmount) > totalEarnings) {
+    if (amountNum > totalEarnings) {
       alert(lang === "th" ? "ยอดเงินสะสมของคุณไม่เพียงพอสำหรับการถอน" : "Insufficient balance for withdrawal.");
       return;
     }
 
     if (!accountNumber) {
       alert(lang === "th" ? "กรุณากรอกเลขที่บัญชีธนาคาร" : "Please enter your bank account number.");
+      return;
+    }
+
+    // 🌟 กล่องยืนยันพร้อมคำเตือนขนาดใหญ่ตามต้องการ
+    const confirmMessage = lang === "th"
+      ? `🚨 คำเตือนสำคัญ:\nบัญชีผู้รับเงิน และชื่อสมาชิกจะต้องตรงกันเท่านั้น จึงจะอนุมัติถอนเงินได้!\nหากไม่ตรงจะถูกปฏิเสธ และระบบจะไม่คืนคอมมิชชันที่กดถอนในรอบนั้นๆ\n\nยืนยันการถอนเงินจำนวน ${amountNum.toLocaleString()} บาท ใช่หรือไม่?`
+      : `🚨 IMPORTANT WARNING:\nThe bank account name must match the member's name exactly. Otherwise, the withdrawal will be rejected and commissions for this round will NOT be refunded.\n\nConfirm withdrawal of ${amountNum.toLocaleString()} THB?`;
+
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
@@ -153,7 +229,7 @@ export default function AffiliatePage() {
 
     const { error } = await supabase.from("withdrawals").insert({
       user_id: user.id,
-      amount: Number(withdrawAmount),
+      amount: amountNum,
       bank_name: bankName,
       account_number: accountNumber,
       account_name: accountName,
@@ -222,26 +298,26 @@ export default function AffiliatePage() {
             </div>
           </div>
 
-          {/* 🌟 กล่องแสดงเงื่อนไขและอัตราค่าคอมมิชชันใหม่ */}
+          {/* กล่องแสดงเงื่อนไขและอัตราค่าคอมมิชชัน */}
           <div className="mb-8 rounded-2xl bg-gradient-to-r from-purple-900/30 via-indigo-900/20 to-slate-900 border border-purple-500/30 p-6 shadow-xl">
             <h3 className="text-sm font-extrabold text-purple-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span>📊</span> {lang === "th" ? "อัตราผลตอบแทนค่าคอมมิชชัน Affiliate" : "Commission Structure"}
+              <span>📊</span> {lang === "th" ? "อัตราผลตอบแทนค่าคอมมิชชัน Affiliate & เงื่อนไขการถอน" : "Commission Structure & Rules"}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-emerald-400 font-bold text-sm">✨ คอมมิชชันการสมัครครั้งแรก (8%)</span>
+                <span className="text-emerald-400 font-bold text-sm">✨ คอมมิชชันการสมัครและการต่ออายุ</span>
                 <p className="text-slate-400">
                   {lang === "th" 
-                    ? "รับทันที 8% จากยอดชำระค่าบริการแพ็กเกจ VIP ในครั้งแรกที่เพื่อนสมัครสมาชิกผ่านลิงก์ของคุณ" 
-                    : "Receive 8% from the first VIP package payment made by your referral."}
+                    ? "รับ 8% จากยอดสมัครครั้งแรก และ 4% จากทุกยอดการต่ออายุแพ็กเกจ VIP ของเพื่อน" 
+                    : "Earn 8% on first sign-up and 4% on VIP renewals."}
                 </p>
               </div>
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-indigo-400 font-bold text-sm">🔄 คอมมิชชันการต่ออายุ (4% ตลอดชีพ)</span>
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-amber-500/30 space-y-1">
+                <span className="text-amber-400 font-bold text-sm">⚠️ เงื่อนไขการถอนเงิน</span>
                 <p className="text-slate-400">
                   {lang === "th" 
-                    ? "รับต่อเนื่อง 4% ตลอดไปทุกครั้งที่สมาชิกทำการต่ออายุแพ็กเกจ (ระบบจะตัดสิทธิ์ VIP อัตโนมัติหากสมาชิกไม่ต่ออายุ)" 
-                    : "Earn 4% continuously on every renewal (VIP status is automatically revoked if not renewed)."}
+                    ? "ถอนขั้นต่ำ 300 บาทขึ้นไป เปิดให้ถอนเฉพาะช่วงสิ้นเดือน (วันที่ 25 - สิ้นเดือน) จำกัด 1 ครั้ง/เดือน" 
+                    : "Min withdrawal 300 THB. Available from 25th to end of month (1 time/month)."}
                 </p>
               </div>
             </div>
@@ -280,19 +356,19 @@ export default function AffiliatePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg">
               <p className="text-sm text-slate-400">{lang === "th" ? "จำนวนคลิกเข้าชม" : "Total Clicks"}</p>
-              <h2 className="text-3xl font-black text-white mt-2">0</h2>
+              <h2 className="text-3xl font-black text-white mt-2">{totalClicks.toLocaleString()}</h2>
             </div>
             <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg">
               <p className="text-sm text-slate-400">{lang === "th" ? "สมาชิกที่สมัครผ่านลิงก์" : "Registered Referrals"}</p>
-              <h2 className="text-3xl font-black text-sky-400 mt-2">0</h2>
+              <h2 className="text-3xl font-black text-sky-400 mt-2">{registeredReferrals.toLocaleString()}</h2>
             </div>
             <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg">
               <p className="text-sm text-slate-400">{lang === "th" ? "สมาชิก VIP ที่แนะนำสำเร็จ" : "VIP Referrals"}</p>
-              <h2 className="text-3xl font-black text-emerald-400 mt-2">0</h2>
+              <h2 className="text-3xl font-black text-emerald-400 mt-2">{vipReferrals.toLocaleString()}</h2>
             </div>
           </div>
 
-          {/* 🌟 ฟอร์มแจ้งถอนเงิน (จำกัด 1 ครั้ง/เดือน และเฉพาะช่วงสิ้นเดือน) */}
+          {/* ฟอร์มแจ้งถอนเงิน พร้อมคำเตือนขนาดใหญ่ */}
           <div className="mb-10 rounded-3xl bg-slate-900 border border-slate-800 p-8 shadow-2xl">
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -304,16 +380,26 @@ export default function AffiliatePage() {
                 </p>
               </div>
 
-              {/* ป้ายแสดงสถานะเงื่อนไขการถอน */}
               <div className={`px-4 py-2 rounded-xl text-xs font-bold border ${isWithdrawOpen ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
                 {withdrawalMessage}
               </div>
             </div>
 
+            {/* 🌟 กล่องคำเตือนขนาดใหญ่ */}
+            <div className="mb-6 rounded-2xl bg-rose-950/40 border border-rose-500/50 p-5 text-rose-200 text-xs md:text-sm space-y-2 shadow-lg">
+              <div className="font-extrabold text-base flex items-center gap-2 text-rose-400">
+                <span>🚨</span> {lang === "th" ? "คำเตือนสำคัญก่อนทำการถอนเงิน" : "Important Withdrawal Warning"}
+              </div>
+              <p className="leading-relaxed">
+                {lang === "th" 
+                  ? "• บัญชีผู้รับเงิน และชื่อสมาชิกจะต้องตรงกันเท่านั้น จึงจะอนุมัติถอนเงินได้\n• หากชื่อบัญชีไม่ตรงกับชื่อสมาชิก จะถูกปฏิเสธการโอนเงิน และระบบจะไม่คืนยอดคอมมิชชันที่กดถอนในรอบนั้นๆ" 
+                  : "• The bank account name must match the member's name exactly to be approved.\n• If names do not match, the request will be rejected and commissions for this round will not be refunded."}
+              </p>
+            </div>
+
             <form onSubmit={handleWithdraw} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
-                {/* เลือกธนาคาร */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-2">
                     {lang === "th" ? "ธนาคาร" : "Bank Name"}
@@ -333,7 +419,6 @@ export default function AffiliatePage() {
                   </select>
                 </div>
 
-                {/* เลขที่บัญชี */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-2">
                     {lang === "th" ? "เลขที่บัญชีธนาคาร" : "Account Number"}
@@ -353,7 +438,6 @@ export default function AffiliatePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 
-                {/* ชื่อบัญชี (ล็อกตามชื่อสมาชิก) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-2">
                     {lang === "th" ? "ชื่อบัญชีธนาคาร (ตรงกับชื่อสมาชิก)" : "Account Name (Locked to Member Name)"}
@@ -365,19 +449,19 @@ export default function AffiliatePage() {
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-purple-300 font-semibold cursor-not-allowed select-none"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">
-                    {lang === "th" ? "* ชื่อบัญชีตรงกับชื่อ-นามสกุลจริงของผู้สมัครสมาชิกเพื่อความปลอดภัย" : "* Must match member's real name."}
+                    {lang === "th" ? "* ชื่อบัญชีต้องตรงกับชื่อ-นามสกุลจริงของผู้สมัครสมาชิก" : "* Must match member's real name."}
                   </p>
                 </div>
 
-                {/* จำนวนเงินที่จะถอน */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-2">
-                    {lang === "th" ? "จำนวนเงินที่ต้องการถอน (บาท)" : "Withdrawal Amount (THB)"}
+                    {lang === "th" ? "จำนวนเงินที่ต้องการถอน (ขั้นต่ำ 300 บาท)" : "Withdrawal Amount (Min 300 THB)"}
                   </label>
                   <input
                     type="number"
+                    min="300"
                     disabled={!isWithdrawOpen}
-                    placeholder="0.00"
+                    placeholder="300 ขึ้นไป"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:border-purple-500 focus:outline-none font-bold text-emerald-400 disabled:opacity-50"
@@ -387,7 +471,6 @@ export default function AffiliatePage() {
 
               </div>
 
-              {/* หมายเหตุการถอนเงิน */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-2">
                   {lang === "th" ? "หมายเหตุการถอนเงิน (ถ้ามี)" : "Withdrawal Remark"}
@@ -402,10 +485,9 @@ export default function AffiliatePage() {
                 />
               </div>
 
-              {/* ปุ่มกดส่งคำขอถอนเงิน */}
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p className="text-xs text-slate-400">
-                  {lang === "th" ? "ℹ️ จำกัดการถอน 1 ครั้ง/เดือน | เงินจะเข้าบัญชีภายใน 1-3 วันทำการหลังอนุมัติ" : "ℹ️ Limit: 1 withdrawal per month | Funds transferred in 1-3 business days."}
+                  {lang === "th" ? "ℹ️ ถอนขั้นต่ำ 300 บาท | จำกัด 1 ครั้ง/เดือน | เงินเข้าบัญชีภายใน 1-3 วันทำการ" : "ℹ️ Min 300 THB | Limit: 1 withdrawal per month"}
                 </p>
 
                 <button
@@ -420,6 +502,64 @@ export default function AffiliatePage() {
               </div>
 
             </form>
+          </div>
+
+          {/* ตารางรายชื่อคนที่แนะนำมา (ด้านล่างสุด) */}
+          <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>👥</span> {lang === "th" ? "รายชื่อสมาชิกที่แนะนำทั้งหมด" : "Referred Members List"}
+                <span className="ml-2 rounded-full bg-purple-500/10 px-3 py-0.5 text-xs font-bold text-purple-400 border border-purple-500/20">
+                  {referredList.length} คน
+                </span>
+              </h3>
+            </div>
+
+            {referredList.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-800 p-12 text-center text-slate-500 text-sm bg-slate-950/40">
+                {lang === "th" ? "ยังไม่มีสมาชิกสมัครผ่านลิงก์แนะนำของคุณ" : "No referrals yet."}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/50">
+                <table className="min-w-[700px] w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-slate-800 bg-slate-900/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="px-4 py-4">{lang === "th" ? "อีเมล / ชื่อสมาชิก" : "Member"}</th>
+                      <th className="px-4 py-4">{lang === "th" ? "วันที่สมัคร" : "Registration Date"}</th>
+                      <th className="px-4 py-4 text-center">{lang === "th" ? "สถานะ" : "Status"}</th>
+                      <th className="px-4 py-4 text-right">{lang === "th" ? "วันหมดอายุ VIP" : "VIP Expiry Date"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-xs md:text-sm">
+                    {referredList.map((item) => {
+                      const isVip = Boolean(item.is_vip);
+                      const name = `${item.first_name || ""} ${item.last_name || ""}`.trim();
+                      const displayEmail = item.email || "ไม่ระบุอีเมล";
+                      const regDate = item.created_at ? new Date(item.created_at).toLocaleDateString(lang === "th" ? "th-TH" : "en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : "-";
+                      const expiryDate = item.vip_expires_at ? new Date(item.vip_expires_at).toLocaleDateString(lang === "th" ? "th-TH" : "en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : "-";
+
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="px-4 py-4 font-semibold text-white">
+                            <div>{displayEmail}</div>
+                            {name && <div className="text-[11px] text-slate-400 font-normal">{name}</div>}
+                          </td>
+                          <td className="px-4 py-4 text-slate-400 font-medium">{regDate}</td>
+                          <td className="px-4 py-4 text-center">
+                            <span className={`inline-block rounded-full px-3 py-1 text-xs font-extrabold ${isVip ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                              {isVip ? "VIP" : "สมาชิกทั่วไป"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-right font-mono font-bold text-slate-300">
+                            {isVip ? expiryDate : <span className="text-slate-500 font-normal">ฟรี</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
         </div>

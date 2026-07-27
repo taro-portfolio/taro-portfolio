@@ -19,58 +19,40 @@ export default function VipPage() {
   const [inputSymbol, setInputSymbol] = useState("AAPL");
   const [analysisPrice, setAnalysisPrice] = useState(0);
 
-  // ข้อมูลโปรไฟล์บริษัทและการเงินตามหุ้นที่ค้นหา
-  const [companyInfo, setCompanyInfo] = useState({
+  // ข้อมูลโปรไฟล์บริษัทและการเงินแบบเรียลไทม์
+  const [companyInfo, setCompanyInfo] = useState<any>({
     name: "Apple Inc.",
-    business: "ดำเนินธุรกิจออกแบบ ผลิต และจัดจำหน่ายอุปกรณ์สื่อสารเคลื่อนที่ คอมพิวเตอร์ส่วนบุคคล และบริการสื่อดิจิทัลระดับโลก",
+    business: "กำลังโหลดรายละเอียดบริษัท...",
     score: 8.8,
     level: "แข็งแกร่งมาก (Excellent)",
     pe: 31.4,
-    peAnalysis: "P/E ค่อนข้างสูงสะท้อนความเชื่อมั่นแบรนด์และกระแสเงินสดที่สม่ำเสมอ เหมาะกับการลงทุนระยะยาว"
+    peAnalysis: "P/E ค่อนข้างสูงสะท้อนความเชื่อมั่นแบรนด์และกระแสเงินสดที่สม่ำเสมอ เหมาะกับการลงทุนระยะยาว",
+    earnings: []
   });
 
   const [lang, setLang] = useState<Language>("th");
   const t = translations[lang];
 
-  // ฟังก์ชันอัปเดตข้อมูลบริษัทตาม Ticker
-  const updateCompanyDetails = (symbol: string) => {
-    const sym = symbol.toUpperCase();
-    if (sym === "AAPL") {
-      setCompanyInfo({
-        name: "Apple Inc.",
-        business: "ดำเนินธุรกิจออกแบบ ผลิต และจัดจำหน่ายอุปกรณ์สื่อสารเคลื่อนที่ คอมพิวเตอร์ส่วนบุคคล และบริการสื่อดิจิทัลระดับโลก",
-        score: 8.8,
-        level: "แข็งแกร่งมาก (Excellent)",
-        pe: 31.4,
-        peAnalysis: "P/E ค่อนข้างสูงสะท้อนความเชื่อมั่นแบรนด์และกระแสเงินสดที่สม่ำเสมอ เหมาะกับการลงทุนระยะยาว"
-      });
-    } else if (sym === "TSLA") {
-      setCompanyInfo({
-        name: "Tesla, Inc.",
-        business: "ผลิตและจำหน่ายยานยนต์ไฟฟ้าพลังงานสะอาด (EV) ระบบกักเก็บพลังงาน และเทคโนโลยีระบบขับเคลื่อนอัตโนมัติ",
-        score: 7.5,
-        level: "ดี (Good / Growth)",
-        pe: 68.2,
-        peAnalysis: "P/E สูงมากเพราะตลาดคาดหวังการเติบโตสูงในอนาคตจาก AI และ Robotaxi มีความผันผวนสูง"
-      });
-    } else if (sym === "MSFT") {
-      setCompanyInfo({
-        name: "Microsoft Corporation",
-        business: "พัฒนาซอฟต์แวร์ คลาวด์คอมพิวติ้ง (Azure) ปัญญาประดิษฐ์ (AI) และฮาร์ดแวร์ระดับองค์กร",
-        score: 9.2,
-        level: "ยอดเยี่ยม (Top Tier)",
-        pe: 35.1,
-        peAnalysis: "P/E เหมาะสมกับอัตราการเติบโตของรายได้จาก Cloud และ AI ที่แข็งแกร่ง งบการเงินไร้ที่ติ"
-      });
-    } else {
-      setCompanyInfo({
-        name: `${sym} Corporation`,
-        business: `บริษัทจดทะเบียนในตลาดหลักทรัพย์สหรัฐฯ ดำเนินธุรกิจและให้บริการในกลุ่มอุตสาหกรรมหลัก`,
-        score: 7.8,
-        level: "ดี (Good)",
-        pe: 24.5,
-        peAnalysis: "P/E อยู่ในเกณฑ์มาตรฐานอุตสาหกรรม สะท้อนมูลค่าเหมาะสมตามพื้นฐานตลาดปัจจุบัน"
-      });
+  // ฟังก์ชันดึงข้อมูลโปรไฟล์บริษัทจริงและงบการเงินจาก Backend API
+  const fetchRealCompanyDetails = async (symbol: string) => {
+    try {
+      const cleanSymbol = symbol.toUpperCase().trim();
+      const res = await fetch(`/api/stock-profile?symbol=${cleanSymbol}`);
+      const data = await res.json();
+
+      if (res.ok && data) {
+        setCompanyInfo({
+          name: data.name || `${cleanSymbol} Corporation`,
+          business: data.description || `บริษัทจดทะเบียนในตลาดหลักทรัพย์สหรัฐฯ ดำเนินธุรกิจและให้บริการในกลุ่มอุตสาหกรรม ${data.industry || 'Technology'}`,
+          score: 8.5,
+          level: "แข็งแกร่ง (Strong)",
+          pe: data.peRatio || 25.0,
+          peAnalysis: `P/E Ratio (${data.peRatio || 'N/A'}) คำนวณจากงบการเงินและราคาตลาดล่าสุด สะท้อนมูลค่าเหมาะสมตามปัจจัยพื้นฐานปัจจุบัน`,
+          earnings: data.earnings || []
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching company profile:", err);
     }
   };
 
@@ -86,7 +68,7 @@ export default function VipPage() {
   };
 
   const checkVipStatus = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("profiles")
       .select("is_vip")
       .eq("id", userId)
@@ -108,6 +90,7 @@ export default function VipPage() {
       await checkVipStatus(user.id);
       const initialPrice = await getStockPrice("AAPL");
       setAnalysisPrice(initialPrice);
+      await fetchRealCompanyDetails("AAPL");
     }
     init();
   }, [router, checkVipStatus]);
@@ -117,9 +100,11 @@ export default function VipPage() {
     if (!inputSymbol.trim()) return;
     const cleanSymbol = inputSymbol.trim().toUpperCase();
     setAnalysisSymbol(cleanSymbol);
-    updateCompanyDetails(cleanSymbol);
+    
+    // ดึงราคาและข้อมูลบริษัทจริงแบบเรียลไทม์
     const p = await getStockPrice(cleanSymbol);
     setAnalysisPrice(p);
+    await fetchRealCompanyDetails(cleanSymbol);
   };
 
   async function handleUpgradeVip() {
@@ -174,7 +159,7 @@ export default function VipPage() {
               </p>
             </div>
 
-            {/* 🌟 ส่วนตารางวิเคราะห์ทางเทคนิค & พื้นฐานบริษัท (ย้ายมาไว้ด้านบนสุดตามต้องการ) */}
+            {/* 🌟 ส่วนตารางวิเคราะห์ทางเทคนิค & พื้นฐานบริษัท */}
             <div className="mb-10 rounded-2xl bg-slate-900/90 p-6 md:p-8 border border-purple-500/30 shadow-2xl">
               
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 border-b border-slate-800 pb-6">
@@ -211,12 +196,50 @@ export default function VipPage() {
                 </form>
               </div>
 
-              {/* รายละเอียดบริษัทและธุรกิจ */}
+              {/* รายละเอียดบริษัทและธุรกิจ (ดึงข้อมูลจริง) */}
               <div className="mb-4 p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
                 <div className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">🏢 รายละเอียดบริษัท ({companyInfo.name})</div>
                 <p className="text-xs md:text-sm text-slate-300 leading-relaxed">
                   {companyInfo.business}
                 </p>
+              </div>
+
+              {/* 📅 เพิ่มใหม่ตามคำขอ: ข้อมูลผลประกาศไตรมาส Q1-Q4 (คาดการณ์ vs จริง, วันที่, EPS) */}
+              <div className="mb-6 p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
+                <div className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <span>📅</span> {lang === "th" ? "ข้อมูลผลประกาศไตรมาส Q1-Q4 (คาดการณ์ vs ผลประกอบการจริง)" : "Quarterly Earnings & EPS Forecast (Q1-Q4)"}
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs md:text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400">
+                        <th className="pb-2 font-semibold">{lang === "th" ? "ไตรมาส" : "Period"}</th>
+                        <th className="pb-2 font-semibold">{lang === "th" ? "วันที่ประกาศ" : "Report Date"}</th>
+                        <th className="pb-2 font-semibold">{lang === "th" ? "กำไรต่อหุ้น (คาดการณ์ EPS)" : "Est. EPS"}</th>
+                        <th className="pb-2 font-semibold">{lang === "th" ? "กำไรต่อหุ้น (จริง Actual)" : "Actual EPS"}</th>
+                        <th className="pb-2 font-semibold">{lang === "th" ? "ความต่าง (Surprise)" : "Surprise"}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {companyInfo.earnings && companyInfo.earnings.length > 0 ? (
+                        companyInfo.earnings.map((item: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-slate-900/40 transition">
+                            <td className="py-2.5 font-bold text-white">{item.period}</td>
+                            <td className="py-2.5 text-slate-300">{item.date}</td>
+                            <td className="py-2.5 text-slate-300">${item.estimatedEPS}</td>
+                            <td className="py-2.5 font-bold text-emerald-400">${item.actualEPS}</td>
+                            <td className="py-2.5 text-indigo-300 font-semibold">{item.surprise}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-4 text-center text-slate-500">กำลังโหลดข้อมูลผลประกอบการ...</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* คะแนนสุขภาพการเงิน */}
@@ -239,10 +262,10 @@ export default function VipPage() {
                 </div>
               </div>
 
-              {/* P/E Ratio และบทวิเคราะห์ */}
+              {/* P/E Ratio จริง และบทวิเคราะห์ */}
               <div className="mb-8 p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                  <div className="text-xs font-bold text-sky-400 uppercase tracking-wider">อัตราส่วน P/E Ratio</div>
+                  <div className="text-xs font-bold text-sky-400 uppercase tracking-wider">อัตราส่วน P/E Ratio (Real-time)</div>
                   <div className="text-2xl font-black text-white mt-0.5">{companyInfo.pe} <span className="text-xs font-normal text-slate-400">เท่า</span></div>
                 </div>
                 <div className="flex-1 md:border-l md:border-slate-800 md:pl-6">
@@ -435,36 +458,6 @@ export default function VipPage() {
                       </tbody>
                     </table>
                   </div>
-                </div>
-              </div>
-
-              {/* Technical Indicators */}
-              <div className="mt-8 rounded-2xl bg-slate-950/60 border border-slate-800 p-5">
-                <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                  <span>⚙️</span> ตัวชี้วัดทางเทคนิค (Technical Indicators)
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-mono">
-                  {[
-                    { name: "RSI (14)", val: "64.72", signal: "ซื้อ", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-                    { name: "STOCH (9,6)", val: "58.64", signal: "ซื้อ", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-                    { name: "STOCHRSI (14)", val: "92.43", signal: "ขาย", color: "text-rose-400 bg-rose-500/10 border-rose-500/30" },
-                    { name: "MACD (12,26)", val: "2.65", signal: "ซื้อ", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-                    { name: "ATR (14)", val: "4.51", signal: "ถือ", color: "text-slate-300 bg-slate-500/10 border-slate-500/30" },
-                    { name: "ADX (14)", val: "22.04", signal: "ซื้อ", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-                    { name: "CCI (14)", val: "276.90", signal: "ขาย", color: "text-rose-400 bg-rose-500/10 border-rose-500/30" },
-                    { name: "Highs/Lows (14)", val: "4.70", signal: "ซื้อ", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-                    { name: "BullBear (13)", val: "15.34", signal: "ซื้อ", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-                  ].map((ind, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800">
-                      <div>
-                        <div className="font-bold text-slate-200">{ind.name}</div>
-                        <div className="text-slate-400 text-[11px] mt-0.5">Value: {ind.val}</div>
-                      </div>
-                      <span className={`px-2.5 py-1 rounded-lg border font-bold text-[11px] ${ind.color}`}>
-                        {ind.signal}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
 

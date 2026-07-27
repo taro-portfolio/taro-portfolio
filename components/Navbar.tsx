@@ -139,7 +139,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
           )}
         </div>
 
-        {/* แถวล่าง: เมนูนำทาง (ทำเป็นแถบเลื่อนซ้าย-ขวาได้บนมือถือ และเรียงปกติบนคอม) */}
+        {/* แถวล่าง: เมนูนำทาง (คงตำแหน่งลิงก์เดิม แต่สลับแค่ชื่อที่แสดง) */}
         {isDashboard && (
           <div className="flex items-center gap-6 overflow-x-auto border-t border-slate-800/80 py-3 text-sm text-slate-300 no-scrollbar">
             <Link href="/dashboard" className="whitespace-nowrap hover:text-white transition">
@@ -154,15 +154,17 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               <span>📰</span> {lang === "th" ? "วิเคราะห์ข่าวหุ้นเรียลไทม์" : "Live Stock News"}
             </Link>
 
+            {/* ลิงก์ /vip แสดงชื่อว่า "วิเคราะห์หุ้นเชิงลึกVIP" */}
             <Link href="/vip" className="whitespace-nowrap hover:text-white transition">
-              VIP
+              {lang === "th" ? "วิเคราะห์หุ้นเชิงลึกVIP" : "VIP Deep Analysis"}
             </Link>
 
+            {/* ลิงก์ /vip/dashboard (ปุ่มม่วง) แสดงชื่อว่า "สิทธิประโยชน์สมาชิกVIP" */}
             <Link 
               href="/vip/dashboard" 
               className="whitespace-nowrap rounded-lg bg-purple-600/20 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-600 hover:text-white transition"
             >
-              {lang === "th" ? "เข้าสู่ระบบVIP" : "VIP Login"}
+              {lang === "th" ? "สิทธิประโยชน์สมาชิกVIP" : "VIP Benefits"}
             </Link>
 
             <Link 

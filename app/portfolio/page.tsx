@@ -243,7 +243,7 @@ export default function PortfolioPage() {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/50 shadow-inner">
-                <table className="min-w-[1100px] w-full border-collapse text-left">
+                <table className="min-w-[1000px] w-full border-collapse text-left">
                   <thead>
                     <tr className="border-b border-slate-800 bg-slate-900/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                       <th className="px-4 py-4">วันที่</th>
@@ -254,8 +254,7 @@ export default function PortfolioPage() {
                       <th className="px-4 py-4 text-right">ราคาทำรายการ (฿)</th>
                       <th className="px-4 py-4 text-right">ราคาปัจจุบัน (฿)</th>
                       <th className="px-4 py-4 text-right">กำไร / ขาดทุน (฿)</th>
-                      <th className="px-4 py-4 text-right">%</th>
-                      <th className="px-4 py-4 text-center">สถานะไม้</th>
+                      <th className="px-4 py-4 text-right">% กำไร/ขาดทุน</th>
                       <th className="px-4 py-4 text-center">จัดการ</th>
                     </tr>
                   </thead>
@@ -292,11 +291,6 @@ export default function PortfolioPage() {
                           </td>
                           <td className={`px-4 py-4 text-right font-mono font-bold ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
                             {isPositive ? "+" : ""}{pnlPercent.toFixed(2)}%
-                          </td>
-                          <td className="px-4 py-4 text-center whitespace-nowrap">
-                            <span className="inline-block rounded-xl bg-indigo-600/20 border border-indigo-500/40 px-3 py-1 text-xs font-bold text-indigo-300 shadow-sm">
-                              ถือต่อไป
-                            </span>
                           </td>
                           <td className="px-4 py-4 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-2">

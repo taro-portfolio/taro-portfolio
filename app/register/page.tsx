@@ -130,7 +130,7 @@ export default function RegisterPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1 uppercase tracking-wide">
-                ชื่อจริง <span className="text-amber-400">(ล็อกถาวร)</span>
+                ชื่อจริง
               </label>
               <input
                 type="text"
@@ -143,7 +143,7 @@ export default function RegisterPage() {
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1 uppercase tracking-wide">
-                นามสกุล <span className="text-amber-400">(ล็อกถาวร)</span>
+                นามสกุล
               </label>
               <input
                 type="text"
@@ -156,8 +156,8 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <p className="text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl">
-            ⚠️ ชื่อจริงและนามสกุลจะไม่สามารถเปลี่ยนแปลงได้หลังจากสมัครสมาชิกเรียบร้อยแล้ว
+          <p className="text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl leading-relaxed">
+            💡 กรุณากรอกชื่อจริงและนามสกุลจริง เพื่อประโยชน์ของท่านในการทำธุรกรรม ฝาก-ถอน หรือเข้าร่วมกิจกรรมพิเศษ โดยข้อมูลนี้จะไม่สามารถเปลี่ยนแปลงได้หลังจากสมัครสมาชิกเรียบร้อยแล้ว
           </p>
 
           {/* อีเมล */}
