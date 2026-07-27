@@ -50,6 +50,30 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
     router.replace("/");
   }
 
+  // ฟังก์ชันป้องกันและตรวจสอบสิทธิ์ VIP ก่อนกดเข้าเมนูพิเศษ
+  const handleVipProtectedClick = async (e: React.MouseEvent<HTMLAnchorElement>, targetPath: string) => {
+    e.preventDefault();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("is_vip")
+      .eq("id", user.id)
+      .single();
+
+    if (data && data.is_vip) {
+      router.push(targetPath);
+    } else {
+      // ถ้ายังไม่เป็น VIP ให้เด้งไปหน้าสมัครสมาชิก / เลือกแพ็กเกจ / ชำระเงินทันที
+      router.push("/vip");
+    }
+  };
+
   return (
     <nav className="w-full border-b border-slate-800 bg-slate-950 sticky top-0 z-50">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
@@ -139,7 +163,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
           )}
         </div>
 
-        {/* แถวล่าง: เมนูนำทาง (คงตำแหน่งลิงก์เดิม แต่สลับแค่ชื่อที่แสดง) */}
+        {/* แถวล่าง: เมนูนำทาง พร้อมระบบล็อกปุ่มเฉพาะ VIP */}
         {isDashboard && (
           <div className="flex items-center gap-6 overflow-x-auto border-t border-slate-800/80 py-3 text-sm text-slate-300 no-scrollbar">
             <Link href="/dashboard" className="whitespace-nowrap hover:text-white transition">
@@ -154,25 +178,32 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               <span>📰</span> {lang === "th" ? "วิเคราะห์ข่าวหุ้นเรียลไทม์" : "Live Stock News"}
             </Link>
 
-            {/* ลิงก์ /vip แสดงชื่อว่า "วิเคราะห์หุ้นเชิงลึกVIP" */}
-            <Link href="/vip" className="whitespace-nowrap hover:text-white transition">
+            {/* ปุ่มวิเคราะห์หุ้นเชิงลึก VIP (ถูกล็อก) */}
+            <a 
+              href="/vip" 
+              onClick={(e) => handleVipProtectedClick(e, "/vip")}
+              className="whitespace-nowrap hover:text-white transition cursor-pointer"
+            >
               {lang === "th" ? "วิเคราะห์หุ้นเชิงลึกVIP" : "VIP Deep Analysis"}
-            </Link>
+            </a>
 
-            {/* ลิงก์ /vip/dashboard (ปุ่มม่วง) แสดงชื่อว่า "สิทธิประโยชน์สมาชิกVIP" */}
-            <Link 
+            {/* ปุ่มสิทธิประโยชน์สมาชิก VIP (ถูกล็อก) */}
+            <a 
               href="/vip/dashboard" 
-              className="whitespace-nowrap rounded-lg bg-purple-600/20 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-600 hover:text-white transition"
+              onClick={(e) => handleVipProtectedClick(e, "/vip/dashboard")}
+              className="whitespace-nowrap rounded-lg bg-purple-600/20 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-600 hover:text-white transition cursor-pointer"
             >
               {lang === "th" ? "สิทธิประโยชน์สมาชิกVIP" : "VIP Benefits"}
-            </Link>
+            </a>
 
-            <Link 
+            {/* ปุ่มสร้างรายได้ Affiliate (ถูกล็อก) */}
+            <a 
               href="/affiliate-program" 
-              className="whitespace-nowrap hover:text-purple-400 font-semibold text-purple-300 text-sm transition"
+              onClick={(e) => handleVipProtectedClick(e, "/affiliate-program")}
+              className="whitespace-nowrap hover:text-purple-400 font-semibold text-purple-300 text-sm transition cursor-pointer"
             >
               {lang === "th" ? "สร้างรายได้ (Affiliate)" : "Affiliate"}
-            </Link>
+            </a>
 
             <Link href="/settings" className="whitespace-nowrap hover:text-white transition">
               {lang === "th" ? "ตั้งค่า" : "Settings"}
