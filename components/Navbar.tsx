@@ -50,7 +50,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
     router.replace("/");
   }
 
-  // ฟังก์ชันป้องกันและตรวจสอบสิทธิ์ VIP ก่อนกดเข้าเมนูพิเศษ
+  // ฟังก์ชันป้องกันและตรวจสอบสิทธิ์ VIP: ถ้ายังไม่เป็น VIP จะเด้งไปหน้าชำระเงิน (/vip/pay) ทันที
   const handleVipProtectedClick = async (e: React.MouseEvent<HTMLAnchorElement>, targetPath: string) => {
     e.preventDefault();
 
@@ -69,8 +69,8 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
     if (data && data.is_vip) {
       router.push(targetPath);
     } else {
-      // ถ้ายังไม่เป็น VIP ให้เด้งไปหน้าสมัครสมาชิก / เลือกแพ็กเกจ / ชำระเงินทันที
-      router.push("/vip");
+      // ถ้ายังไม่เป็น VIP ให้เด้งไปหน้าชำระเงิน/สมัครแพ็กเกจทันที
+      router.push("/vip/pay");
     }
   };
 
@@ -163,7 +163,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
           )}
         </div>
 
-        {/* แถวล่าง: เมนูนำทาง พร้อมระบบล็อกปุ่มเฉพาะ VIP */}
+        {/* แถวล่าง: เมนูนำทาง 4 ปุ่มพิเศษ วิ่งไปหน้าชำระเงินเมื่อยังไม่เป็น VIP */}
         {isDashboard && (
           <div className="flex items-center gap-6 overflow-x-auto border-t border-slate-800/80 py-3 text-sm text-slate-300 no-scrollbar">
             <Link href="/dashboard" className="whitespace-nowrap hover:text-white transition">
@@ -174,7 +174,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "พอร์ตฟิลิปส์" : "Portfolio"}
             </Link>
 
-            {/* ปุ่มวิเคราะห์ข่าวหุ้นเรียลไทม์ (ถูกล็อกเฉพาะ VIP) */}
+            {/* ปุ่มที่ 1: วิเคราะห์ข่าวหุ้นเรียลไทม์ */}
             <a 
               href="/live-stock-news" 
               onClick={(e) => handleVipProtectedClick(e, "/live-stock-news")}
@@ -183,7 +183,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               <span>📰</span> {lang === "th" ? "วิเคราะห์ข่าวหุ้นเรียลไทม์" : "Live Stock News"}
             </a>
 
-            {/* ปุ่มวิเคราะห์หุ้นเชิงลึก VIP (ถูกล็อก) */}
+            {/* ปุ่มที่ 2: วิเคราะห์หุ้นเชิงลึก VIP */}
             <a 
               href="/vip" 
               onClick={(e) => handleVipProtectedClick(e, "/vip")}
@@ -192,7 +192,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "วิเคราะห์หุ้นเชิงลึกVIP" : "VIP Deep Analysis"}
             </a>
 
-            {/* ปุ่มสิทธิประโยชน์สมาชิก VIP (ถูกล็อก) */}
+            {/* ปุ่มที่ 3: สิทธิประโยชน์สมาชิก VIP */}
             <a 
               href="/vip/dashboard" 
               onClick={(e) => handleVipProtectedClick(e, "/vip/dashboard")}
@@ -201,7 +201,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "สิทธิประโยชน์สมาชิกVIP" : "VIP Benefits"}
             </a>
 
-            {/* ปุ่มสร้างรายได้ Affiliate (ถูกล็อก) */}
+            {/* ปุ่มที่ 4: สร้างรายได้ (Affiliate) */}
             <a 
               href="/affiliate-program" 
               onClick={(e) => handleVipProtectedClick(e, "/affiliate-program")}
