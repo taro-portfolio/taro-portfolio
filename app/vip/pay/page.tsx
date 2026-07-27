@@ -132,7 +132,7 @@ export default function VipPaymentPage() {
                   onClick={() => setShowQrCode(!showQrCode)}
                   className="rounded-xl bg-indigo-600/20 border border-indigo-500/40 px-4 py-2 text-xs font-bold text-indigo-300 hover:bg-indigo-600 hover:text-white transition cursor-pointer"
                 >
-                  {showQrCode ? "ซ่อน QR Code ✖" : "📱 แสดง QR Code ชำระเงิน"}
+                  {showQrCode ? "ซ่อน QR Code ✖" : "📱 แสดง QR Code แม่มณี"}
                 </button>
               </div>
 
@@ -142,13 +142,15 @@ export default function VipPaymentPage() {
                   <div className="flex justify-center">
                     <img
                       src="https://dqnrixhptlgceimxdvwo.supabase.co/storage/v1/object/public/slips/S__113950724.jpg"
-                      alt="PromptPay QR Code"
+                      alt="PromptPay Mae Manee QR Code"
                       className="w-44 h-44 object-contain rounded-xl border border-slate-700 bg-white p-2 shadow-md"
                     />
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    พร้อมเพย์ / บัญชีธนาคาร: บจก. ของคุณ (กสิกรไทย)
-                  </p>
+                  <div className="text-[11px] text-slate-300 space-y-1">
+                    <p className="font-bold text-purple-300">ร้านค้า: ทาโร่ พอร์ตโฟลิโอ</p>
+                    <p>ชื่อบัญชี: พิษณุ ปุกคาม</p>
+                    <p className="text-slate-400">ประเภท: พร้อมเพย์ / แม่มณี</p>
+                  </div>
                 </div>
               )}
             </div>
