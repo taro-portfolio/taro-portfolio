@@ -174,9 +174,14 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "พอร์ตฟิลิปส์" : "Portfolio"}
             </Link>
 
-            <Link href="/live-stock-news" className="whitespace-nowrap hover:text-white transition flex items-center gap-1.5">
+            {/* ปุ่มวิเคราะห์ข่าวหุ้นเรียลไทม์ (ถูกล็อกเฉพาะ VIP) */}
+            <a 
+              href="/live-stock-news" 
+              onClick={(e) => handleVipProtectedClick(e, "/live-stock-news")}
+              className="whitespace-nowrap hover:text-white transition flex items-center gap-1.5 cursor-pointer"
+            >
               <span>📰</span> {lang === "th" ? "วิเคราะห์ข่าวหุ้นเรียลไทม์" : "Live Stock News"}
-            </Link>
+            </a>
 
             {/* ปุ่มวิเคราะห์หุ้นเชิงลึก VIP (ถูกล็อก) */}
             <a 
