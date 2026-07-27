@@ -46,46 +46,54 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-950">
-      <div className="w-full max-w-md rounded-xl bg-slate-900 p-8 shadow-xl">
+    <main className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+      <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-[#0c101d] p-8 shadow-2xl">
 
-        <h1 className="text-3xl font-bold text-white mb-6 text-center">
+        <h1 className="text-3xl font-extrabold text-white mb-6 text-center">
           Login
         </h1>
 
-        <input
-          className="w-full rounded border p-3 mb-4 text-black"
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1 uppercase tracking-wide">Email</label>
+            <input
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 shadow-inner"
+              type="email"
+              placeholder="name@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-        <div className="relative mb-4">
-          <input
-            className="w-full rounded border p-3 pr-16 text-black"
-            type={showPassword ? "text" : "password"}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1 uppercase tracking-wide">Password</label>
+            <div className="relative">
+              <input
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 p-3 pr-16 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 shadow-inner"
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
 
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-blue-600"
-          >
-            {showPassword ? "ซ่อน" : "แสดง"}
-          </button>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-400 hover:text-blue-300"
+              >
+                {showPassword ? "ซ่อน" : "แสดง"}
+              </button>
+            </div>
+          </div>
         </div>
 
         <button
           onClick={handleLogin}
           disabled={loading}
-          className={`w-full rounded p-3 text-white transition ${
+          className={`mt-6 w-full rounded-xl p-3.5 text-sm font-bold text-white transition shadow-lg cursor-pointer ${
             loading
-              ? "bg-gray-500 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700"
+              ? "bg-slate-700 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-500 shadow-blue-600/30"
           }`}
         >
           {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
