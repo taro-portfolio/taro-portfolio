@@ -85,7 +85,6 @@ export default function AffiliatePage() {
         );
       }
     } catch {
-      // ป้องกัน Error หากยังไม่ได้สร้างตาราง withdraws
       setIsWithdrawOpen(currentEarnings >= 300);
       setWithdrawalMessage(
         currentEarnings >= 300
@@ -116,7 +115,6 @@ export default function AffiliatePage() {
     const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
     setAccountName(fullName || user.email || "");
     
-    // รองรับชื่อคอลัมน์รหัสแนะนำหลายแบบ (referral_code, ref_code, code)
     const code = profile.referral_code || profile.ref_code || profile.code || "";
     setReferralCode(code);
 
@@ -127,28 +125,54 @@ export default function AffiliatePage() {
       setReferralLink(`${baseUrl}/register?ref=${user.id}`);
     }
 
-    // 🌟 1. ดึงข้อมูลสมาชิกที่แนะนำมา (รองรับทั้งเงื่อนไข referred_by หรือ invited_by)
+    // 🌟 1. ดึงรายชื่อสมาชิกภายใต้รหัสแนะนำทั้งหมด (ครอบคลุมทุกรูปแบบคอลัมน์เชื่อมโยง)
     try {
-      let queryStr = `referred_by.eq.${code},referred_by.eq.${user.id},invited_by.eq.${code},invited_by.eq.${user.id}`;
-      if (!code) {
-        queryStr = `referred_by.eq.${user.id},invited_by.eq.${user.id}`;
-      }
-
-      const { data: referredUsers, error: refError } = await supabase
+      // ดึงโปรไฟล์ทั้งหมดมาตรวจสอบเงื่อนไขฝั่ง Client เพื่อความแม่นยำสูงสุด ไม่ให้พลาดรายชื่อ
+      const { data: allProfiles, error: refError } = await supabase
         .from("profiles")
         .select("*")
-        .or(queryStr)
         .order("created_at", { ascending: false });
 
-      if (!refError && referredUsers) {
-        setReferredList(referredUsers);
-        setRegisteredReferrals(referredUsers.length);
+      if (!refError && allProfiles) {
+        const myReferrals = allProfiles.filter((item) => {
+          if (item.id === user.id) return false; // ไม่เอาตัวเอง
+          
+          const refBy = String(item.referred_by || "").trim();
+          const invBy = String(item.invited_by || "").trim();
+          const refCodeCol = String(item.ref_code || "").trim();
+          
+          return (
+            (code && (refBy === code || invBy === code)) ||
+            refBy === user.id ||
+            invBy === user.id ||
+            refCodeCol === code
+          );
+        });
 
-        const vipCount = referredUsers.filter((u) => Boolean(u.is_vip || u.vip)).length;
-        setVipReferrals(vipCount);
-      } else {
-        // หากไม่มีคอลัมน์อ้างอิง ให้ดึงโปรไฟล์ทั้งหมดมาเทสแสดงผลก่อนไม่ให้ตารางว่าง
-        setReferredList([]);
+        // หากยังหาไม่เจอ ลองดึงข้อมูลจากตาราง referrals แยก (เผื่อมีตารางเก็บต่างหาก)
+        if (myReferrals.length === 0) {
+          const { data: refTableData } = await supabase
+            .from("referrals")
+            .select("*")
+            .or(`referrer_id.eq.${user.id},referral_code.eq.${code}`);
+
+          if (refTableData && refTableData.length > 0) {
+            const referredIds = refTableData.map(r => r.referred_id || r.user_id);
+            const matchedMembers = allProfiles.filter(p => referredIds.includes(p.id));
+            setReferredList(matchedMembers);
+            setRegisteredReferrals(matchedMembers.length);
+            setVipReferrals(matchedMembers.filter(u => Boolean(u.is_vip || u.vip)).length);
+          } else {
+            setReferredList([]);
+            setRegisteredReferrals(0);
+            setVipReferrals(0);
+          }
+        } else {
+          setReferredList(myReferrals);
+          setRegisteredReferrals(myReferrals.length);
+          const vipCount = myReferrals.filter((u) => Boolean(u.is_vip || u.vip)).length;
+          setVipReferrals(vipCount);
+        }
       }
     } catch (err) {
       console.error("Error fetching referrals:", err);
@@ -168,18 +192,17 @@ export default function AffiliatePage() {
       setTotalClicks(0);
     }
 
-    // 🌟 3. ดึงยอดรายได้สะสมจากตารางคอมมิชชัน (รองรับตาราง commissions หรือ affiliate_earnings)
+    // 🌟 3. ดึงยอดรายได้สะสมจากค่าคอมมิชชัน
     let calculatedEarnings = 0;
     try {
       const { data: commData } = await supabase
         .from("commissions")
         .select("amount, earnings, total")
-        .eq("user_id", user.id);
+        .or(`user_id.eq.${user.id},referrer_id.eq.${user.id}`);
 
       if (commData && commData.length > 0) {
         calculatedEarnings = commData.reduce((acc, curr) => acc + Number(curr.amount || curr.earnings || curr.total || 0), 0);
       } else {
-        // ลองดึงจากตารางทางเลือก
         const { data: altComm } = await supabase
           .from("affiliate_earnings")
           .select("amount")
@@ -203,6 +226,9 @@ export default function AffiliatePage() {
     const channel = supabase
       .channel("realtime-affiliate-page")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        fetchAffiliateData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "commissions" }, () => {
         fetchAffiliateData();
       })
       .subscribe();
@@ -282,7 +308,7 @@ export default function AffiliatePage() {
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="flex items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-          <h1 className="text-xl font-semibold text-slate-300">กำลังโหลดระบบ Affiliate...</h1>
+          <h1 className="text-xl font-semibold text-slate-300">กำลังโหลดข้อมูลระบบแนะนำเพื่อน...</h1>
         </div>
       </main>
     );
@@ -343,7 +369,7 @@ export default function AffiliatePage() {
           <div className="mb-8 rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                <span>🔑</span> {lang === "th" ? `รหัสแนะนำประจำตัว: ${referralCode || "TARO-VIP"}` : `Referral Code: ${referralCode || "TARO-VIP"}`}
+                <span>🔑</span> {lang === "th" ? `รหัสแนะนำประจำตัว: ${referralCode || "กำลังโหลด..."}` : `Referral Code: ${referralCode || "Loading..."}`}
               </h3>
             </div>
             
