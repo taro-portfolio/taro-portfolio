@@ -224,7 +224,7 @@ export default function PortfolioPage() {
             <div className="rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2.5 text-xs md:text-sm font-semibold text-slate-300 flex items-center gap-2">
               <span className="text-slate-400">กำไร/ขาดทุนที่ขายแล้ว (Realized P/L):</span> 
               <span className={`font-bold ${realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {realizedPnl >= 0 ? "+" : ""}{realizedPnl.toFixed(2)} {currencySymbol}
+                {realizedPnl >= 0 ? "+" : ""}{(realizedPnl * (currency === "THB" ? exchangeRate : 1)).toFixed(2)} {currencySymbol}
               </span>
             </div>
           </div>
@@ -273,15 +273,25 @@ export default function PortfolioPage() {
                       let buyPrice = rawBuyPrice;
                       let currentPrice = rawCurrentPrice;
 
+                      // 🌟 ปรับปรุงการแปลงสกุลเงินหุ้น US ให้ถูกต้องตามสกุลเงินที่เลือกแสดงผล
                       if (isUS) {
                         if (currency === "THB") {
+                          // ถ้าบันทึกเป็น USD แต่ผู้ใช้เลือกดูเป็น THB ให้แปลงเป็น THB
                           buyPrice = rawBuyPrice * exchangeRate;
                           currentPrice = rawCurrentPrice * exchangeRate;
+                        } else {
+                          // ถ้าผู้ใช้เลือกดูเป็น USD แสดงผลตามค่า USD จริง
+                          buyPrice = rawBuyPrice;
+                          currentPrice = rawCurrentPrice;
                         }
                       } else {
+                        // หุ้นไทยหรือตลาดอื่นๆ (บันทึกเป็น THB)
                         if (currency === "USD") {
                           buyPrice = rawBuyPrice / exchangeRate;
                           currentPrice = rawCurrentPrice / exchangeRate;
+                        } else {
+                          buyPrice = rawBuyPrice;
+                          currentPrice = rawCurrentPrice;
                         }
                       }
 
