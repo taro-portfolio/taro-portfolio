@@ -155,7 +155,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "วิเคราะห์หุ้นเชิงลึกVIP" : "VIP Deep Analysis"}
             </Link>
 
-            {/* สิทธิประโยชน์สมาชิก VIP (ชี้ตรงไปที่ /vip/dashboard) */}
+            {/* สิทธิประโยชน์สมาชิก VIP (ชี้ตรงไปที่ /vip/dashboard แบบอิสระ) */}
             <Link 
               href="/vip/dashboard" 
               className="whitespace-nowrap rounded-lg bg-purple-600/20 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-600 hover:text-white transition cursor-pointer"
