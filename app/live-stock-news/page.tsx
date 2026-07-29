@@ -17,7 +17,7 @@ export default function LiveStockNewsPage() {
   const [newsList, setNewsList] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
 
-  // State สำหรับข่าวพิเศษด้านบน (ทรัมป์ & เฟด)
+  // State สำหรับข่าวภาพรวมด้านบน (ดึงสดจาก API)
   const [macroNews, setMacroNews] = useState<any[]>([]);
   const [macroLoading, setMacroLoading] = useState(true);
 
@@ -26,17 +26,17 @@ export default function LiveStockNewsPage() {
 
   // ฟังก์ชันจัดกลุ่มสีตามประเภท Sentiment
   const getSentimentBadgeStyle = (text: string) => {
-    const lower = text.toLowerCase();
+    const lower = text ? text.toLowerCase() : "";
     if (lower.includes("เชิงบวก") || lower.includes("positive") || lower.includes("strong") || lower.includes("bullish")) {
-      return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"; // เขียว (ข่าวดี)
+      return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"; 
     } else if (lower.includes("เชิงลบ") || lower.includes("negative") || lower.includes("cautious") || lower.includes("ระมัดระวัง") || lower.includes("risk")) {
-      return "bg-rose-500/20 text-rose-400 border border-rose-500/40"; // แดง (ข่าวร้าย)
+      return "bg-rose-500/20 text-rose-400 border border-rose-500/40"; 
     } else {
-      return "bg-amber-500/20 text-amber-400 border border-amber-500/40"; // เหลือง (กลางๆ ทั่วไป)
+      return "bg-amber-500/20 text-amber-400 border border-amber-500/40"; 
     }
   };
 
-  // ฟังก์ชันดึงข่าวภาพรวมมหภาคแบบเรียลไทม์จาก API จริง
+  // 🌟 ดึงข่าวภาพรวมสดๆ จาก API ข่าวจริง (ลบข้อความฟิกซ์เก่าออกหมดแล้ว)
   const fetchMacroNews = useCallback(async (currentLang: string) => {
     setMacroLoading(true);
     try {
@@ -44,16 +44,16 @@ export default function LiveStockNewsPage() {
       if (res.ok) {
         const data = await res.json();
         if (data && data.success && Array.isArray(data.news)) {
-          // แปลงรูปแบบข่าวให้เข้ากับ UI มหภาคด้านบน
-          const formattedMacro = data.news.slice(0, 2).map((item: any, idx: number) => ({
-            headline: idx === 0 ? `🔥 ${item.title}` : `🏦 ${item.title}`,
+          // ดึงข่าวล่าสุด 2 ข่าวแรกมาแสดงที่กล่องไฮไลต์ด้านบน
+          const liveMacro = data.news.slice(0, 2).map((item: any, idx: number) => ({
+            headline: item.title,
             summary: item.summary || item.title,
-            source: item.source || "Global Financial Desk",
-            url: item.link,
-            timeAgo: new Date(item.pubDate).toLocaleDateString() === new Date().toLocaleDateString() ? (currentLang === "th" ? "สดๆ ร้อนๆ วันนี้" : "Today") : (currentLang === "th" ? "เมื่อเร็วๆ นี้" : "Recent"),
+            source: item.source || "Global Financial Wire",
+            url: item.link || "#",
+            timeAgo: "Live Update",
             sentiment: idx === 0 ? (currentLang === "th" ? "เชิงระมัดระวัง (Cautious)" : "Cautious") : (currentLang === "th" ? "กลางๆ (Neutral)" : "Neutral")
           }));
-          setMacroNews(formattedMacro);
+          setMacroNews(liveMacro);
         }
       }
     } catch (err) {
@@ -63,7 +63,7 @@ export default function LiveStockNewsPage() {
     }
   }, []);
 
-  // ฟังก์ชันดึงข่าวหุ้นรายตัวแบบเรียลไทม์จาก Backend API
+  // ฟังก์ชันดึงข่าวหุ้นรายตัวจาก Backend API
   const fetchStockNews = useCallback(async (symbol: string, currentLang: string) => {
     if (!symbol.trim()) return;
     setNewsLoading(true);
@@ -105,7 +105,6 @@ export default function LiveStockNewsPage() {
         .eq("id", user.id)
         .single();
 
-      // ป้องกันเข้มงวด: หากไม่พบข้อมูลโปรไฟล์หรือไม่ได้เป็น VIP ให้ดีดกลับไปหน้า /vip ทันที
       if (!profile || !profile.is_vip) {
         router.replace("/vip");
         return;
@@ -139,7 +138,7 @@ export default function LiveStockNewsPage() {
           
           <div className="space-y-8">
             
-            {/* ข่าวภาพรวมมหภาค (เรียลไทม์สดๆ จาก API) */}
+            {/* ข่าวภาพรวมมหภาค (ดึงสดจาก API จริง ไม่มีข้อความค้าง) */}
             <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-950/20 via-slate-900 to-slate-950 p-6 md:p-8 shadow-2xl">
               <div className="flex items-center gap-2 mb-4">
                 <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5">
