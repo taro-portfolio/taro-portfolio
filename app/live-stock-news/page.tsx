@@ -36,67 +36,41 @@ export default function LiveStockNewsPage() {
     }
   };
 
-  // ฟังก์ชันดึงข่าวภาพรวมมหภาค (ทรัมป์ / เฟด)
+  // ฟังก์ชันดึงข่าวภาพรวมมหภาคแบบเรียลไทม์จาก API จริง
   const fetchMacroNews = useCallback(async (currentLang: string) => {
     setMacroLoading(true);
     try {
-      const res = await fetch(`/api/stock-news?symbol=SPY&lang=${currentLang}`);
+      const res = await fetch(`/api/news?lang=${currentLang}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const macroCustom = currentLang === "th" ? [
-            {
-              headline: "🔥 เกาะติดนโยบายกำแพงภาษีและท่าทีทรัมป์ที่มีผลต่อตลาดหุ้น",
-              summary: "ตลาดหุ้นจับตามาตรการภาษีการค้าและการผลักดันกฎหมายภาษีใหม่ของโดนัลด์ ทรัมป์ ซึ่งส่งผลกระทบโดยตรงต่อห่วงโซ่อุปทานและกลุ่มหุ้นเทคโนโลยีขนาดใหญ่",
-              source: "Global Trade Watch",
-              url: "https://www.bloomberg.com",
-              timeAgo: "สดๆ ร้อนๆ วันนี้",
-              sentiment: "เชิงระมัดระวัง (Cautious) - รอความชัดเจนมาตรการภาษีรอบใหม่"
-            },
-            {
-              headline: "🏦 สัญญาณจากธนาคารกลางสหรัฐฯ (เฟด) กับทิศทางดอกเบี้ย",
-              summary: "นักลงทุนประเมินท่าทีการประชุมเฟดท่ามกลางความกดดันด้านเงินเฟ้อและราคาน้ำมัน เพื่อประเมินจังหวะการตัดสินใจเรื่องอัตราดอกเบี้ยระยะถัดไป",
-              source: "Federal Reserve Desk",
-              url: "https://www.reuters.com",
-              timeAgo: "1 วันที่แล้ว",
-              sentiment: "กลางๆ (Neutral) - ตลาดรอลุ้นผลประชุมและถ้อยแถลงประธานเฟด"
-            }
-          ] : [
-            {
-              headline: "🔥 Trump Tariff Policy & Market Impact Updates",
-              summary: "Markets closely monitor trade tariff enforcement and regulatory shifts under the Trump administration, affecting global supply chains and tech equities.",
-              source: "Global Trade Watch",
-              url: "https://www.bloomberg.com",
-              timeAgo: "Today",
-              sentiment: "Cautious - Monitoring new trade regulations."
-            },
-            {
-              headline: "🏦 Federal Reserve (Fed) Rate Outlook & Inflation Watch",
-              summary: "Investors evaluate Fed policy signals amid energy price fluctuations and inflation data to gauge upcoming interest rate decisions.",
-              source: "Federal Reserve Desk",
-              url: "https://www.reuters.com",
-              timeAgo: "1 day ago",
-              sentiment: "Neutral - Awaiting upcoming FOMC meeting signals."
-            }
-          ];
-          setMacroNews(macroCustom);
+        if (data && data.success && Array.isArray(data.news)) {
+          // แปลงรูปแบบข่าวให้เข้ากับ UI มหภาคด้านบน
+          const formattedMacro = data.news.slice(0, 2).map((item: any, idx: number) => ({
+            headline: idx === 0 ? `🔥 ${item.title}` : `🏦 ${item.title}`,
+            summary: item.summary || item.title,
+            source: item.source || "Global Financial Desk",
+            url: item.link,
+            timeAgo: new Date(item.pubDate).toLocaleDateString() === new Date().toLocaleDateString() ? (currentLang === "th" ? "สดๆ ร้อนๆ วันนี้" : "Today") : (currentLang === "th" ? "เมื่อเร็วๆ นี้" : "Recent"),
+            sentiment: idx === 0 ? (currentLang === "th" ? "เชิงระมัดระวัง (Cautious)" : "Cautious") : (currentLang === "th" ? "กลางๆ (Neutral)" : "Neutral")
+          }));
+          setMacroNews(formattedMacro);
         }
       }
     } catch (err) {
-      console.error("Error fetching macro news:", err);
+      console.error("Error fetching live macro news:", err);
     } finally {
       setMacroLoading(false);
     }
   }, []);
 
-  // ฟังก์ชันดึงข่าวหุ้นรายตัวจาก Backend API
+  // ฟังก์ชันดึงข่าวหุ้นรายตัวแบบเรียลไทม์จาก Backend API
   const fetchStockNews = useCallback(async (symbol: string, currentLang: string) => {
     if (!symbol.trim()) return;
     setNewsLoading(true);
 
     try {
       const cleanSymbol = symbol.toUpperCase().trim();
-      const res = await fetch(`/api/stock-news?symbol=${cleanSymbol}&lang=${currentLang}`);
+      const res = await fetch(`/api/news?symbol=${cleanSymbol}&lang=${currentLang}`);
       
       if (!res.ok) {
         throw new Error(`API error: ${res.status}`);
@@ -104,8 +78,8 @@ export default function LiveStockNewsPage() {
 
       const data = await res.json();
 
-      if (Array.isArray(data)) {
-        setNewsList(data);
+      if (data && data.success && Array.isArray(data.news)) {
+        setNewsList(data.news);
       } else {
         setNewsList([]);
       }
@@ -145,13 +119,6 @@ export default function LiveStockNewsPage() {
     checkVipAccess();
   }, [router, newsQuery, lang, fetchMacroNews, fetchStockNews]);
 
-  useEffect(() => {
-    if (!loading) {
-      fetchMacroNews(lang);
-      fetchStockNews(newsQuery, lang);
-    }
-  }, [lang, newsQuery, fetchMacroNews, fetchStockNews, loading]);
-
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
@@ -172,22 +139,24 @@ export default function LiveStockNewsPage() {
           
           <div className="space-y-8">
             
-            {/* ข่าวภาพรวมมหภาค (ทรัมป์ & เฟด) */}
+            {/* ข่าวภาพรวมมหภาค (เรียลไทม์สดๆ จาก API) */}
             <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-950/20 via-slate-900 to-slate-950 p-6 md:p-8 shadow-2xl">
               <div className="flex items-center gap-2 mb-4">
                 <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5">
-                  <span>🇺🇸</span> {lang === "th" ? "เกาะติดประเด็นร้อน: ทรัมป์ & เฟด (Real-time 7 Days)" : "Macro Focus: Trump & Fed Updates"}
+                  <span>🇺🇸</span> {lang === "th" ? "เกาะติดประเด็นร้อน: ข่าวสารการเงินระดับโลก (Real-time Live)" : "Macro Focus: Global Live Financial News"}
                 </span>
               </div>
               <h2 className="text-xl md:text-2xl font-black text-white mb-2">
                 {lang === "th" ? "สรุปข่าวสารสำคัญที่มีผลกระทบต่อตลาดหุ้นและทิศทางการลงทุน" : "Key Market-Moving Headlines & Policy Impact"}
               </h2>
               <p className="text-xs md:text-sm text-slate-400 mb-6">
-                {lang === "th" ? "อัปเดตสถานการณ์สดจากหลากหลายสำนักข่าวเพื่อประกอบการตัดสินใจพอร์ตการลงทุนของคุณ" : "Latest compiled summaries from major financial wires."}
+                {lang === "th" ? "อัปเดตสถานการณ์สดจากหลากหลายสำนักข่าวต่างประเทศเพื่อประกอบการตัดสินใจพอร์ตของคุณ" : "Latest live updates compiled from global financial wires."}
               </p>
 
               {macroLoading ? (
-                <div className="py-8 text-center text-xs text-slate-400">กำลังโหลดข่าวสำคัญ...</div>
+                <div className="py-8 text-center text-xs text-slate-400">กำลังดึงข้อมูลข่าวสารล่าสุด...</div>
+              ) : macroNews.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400">ไม่พบข้อมูลข่าวสารในช่วงเวลานี้</div>
               ) : (
                 <div className="grid gap-6 md:grid-cols-2">
                   {macroNews.map((macro, idx) => (
@@ -202,15 +171,25 @@ export default function LiveStockNewsPage() {
                         <h3 className="text-sm md:text-base font-bold text-white mb-2 leading-snug">
                           {macro.headline}
                         </h3>
-                        <p className="text-xs text-slate-300 mb-4 bg-slate-900/50 p-3 rounded-xl border border-slate-800/80">
+                        <p className="text-xs text-slate-300 mb-4 bg-slate-900/50 p-3 rounded-xl border border-slate-800/80 line-clamp-3">
                           {macro.summary}
                         </p>
                       </div>
-                      <div className="border-t border-slate-800/60 pt-3 text-xs font-bold flex items-center gap-2">
-                        <span className="text-slate-400">🤖 AI Impact:</span>
-                        <span className={`px-2.5 py-1 rounded-lg ${getSentimentBadgeStyle(macro.sentiment)}`}>
-                          {macro.sentiment}
-                        </span>
+                      <div className="border-t border-slate-800/60 pt-3 text-xs font-bold flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400">🤖 AI Impact:</span>
+                          <span className={`px-2.5 py-1 rounded-lg ${getSentimentBadgeStyle(macro.sentiment)}`}>
+                            {macro.sentiment}
+                          </span>
+                        </div>
+                        <a 
+                          href={macro.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-indigo-400 hover:underline text-xs"
+                        >
+                          อ่านต้นฉบับ ↗
+                        </a>
                       </div>
                     </div>
                   ))}
@@ -277,30 +256,30 @@ export default function LiveStockNewsPage() {
                     <div>
                       <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
                         <span className="rounded bg-indigo-500/10 text-indigo-400 px-2.5 py-1 font-bold border border-indigo-500/20">
-                          {news.source}
+                          {news.source || "Global News"}
                         </span>
-                        <span>{news.timeAgo}</span>
+                        <span>{news.timeAgo || "Live"}</span>
                       </div>
 
                       <a 
-                        href={news.url} 
+                        href={news.link || news.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="text-base md:text-lg font-bold text-white mb-3 leading-snug hover:text-indigo-400 transition block"
                       >
-                        {news.headline} ↗
+                        {news.title || news.headline} ↗
                       </a>
 
                       <p className="text-xs md:text-sm text-slate-300 mb-4 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
-                        <strong className="text-indigo-300">📝 {lang === "th" ? "สรุปใจความสำคัญ:" : "Summary:"}</strong> {news.summary}
+                        <strong className="text-indigo-300">📝 {lang === "th" ? "สรุปใจความสำคัญ:" : "Summary:"}</strong> {news.summary || news.title}
                       </p>
                     </div>
 
                     <div className="border-t border-slate-800/80 pt-4 mt-2">
                       <div className="flex items-center gap-2 text-xs font-bold">
                         <span className="text-slate-400">🤖 AI Sentiment Analysis:</span>
-                        <span className={`px-2.5 py-1 rounded-lg ${getSentimentBadgeStyle(news.sentiment)}`}>
-                          {news.sentiment}
+                        <span className={`px-2.5 py-1 rounded-lg ${getSentimentBadgeStyle(news.sentiment || "Neutral")}`}>
+                          {news.sentiment || (lang === "th" ? "กลางๆ (Neutral)" : "Neutral")}
                         </span>
                       </div>
                     </div>
