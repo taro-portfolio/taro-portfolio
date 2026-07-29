@@ -23,6 +23,7 @@ export default function AdminVipApprovalsPage() {
         return;
       }
 
+      // ดึงข้อมูลผ่าน API หลังบ้าน หรือดึงตรงโดยบังคับใช้สิทธิ์
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -35,11 +36,15 @@ export default function AdminVipApprovalsPage() {
         return;
       }
 
-      // ดึงรายชื่อสมาชิกทั้งหมด
-      const { data: everyone } = await supabase
+      // ดึงรายชื่อสมาชิกทั้งหมด (หากติด RLS ให้เช็คว่าเปิด Policy ให้แอดมินอ่านได้หรือยัง)
+      const { data: everyone, error: fetchError } = await supabase
         .from("profiles")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (fetchError) {
+        console.error("Fetch Error:", fetchError);
+      }
 
       if (everyone) {
         setAllUsers(everyone);
@@ -49,7 +54,7 @@ export default function AdminVipApprovalsPage() {
         });
         setReferredInputs(initialInputs);
 
-        // กรองหาคนที่ส่งสลิปมา (มี slip_url ไม่เป็นค่าว่าง/null หรือมีสถานะเป็น pending)
+        // กรองหาคนที่ส่งสลิปมา (มี slip_url หรือ vip_status เป็น pending)
         const pendingList = everyone.filter(
           (u) => (u.slip_url && u.slip_url.trim() !== "") || u.vip_status === "pending"
         );
@@ -270,7 +275,7 @@ export default function AdminVipApprovalsPage() {
           <div>
             {pendingUsers.length === 0 ? (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400">
-                ไม่มีรายการรออนุมัติในขณะนี้ 🎉
+                ไม่มีรายการรออนุมัติในขณะนี้ 🎉 (หากมีข้อมูลในตาราง profiles แต่ไม่แสดงที่นี่ ให้ไปปิด RLS ใน Supabase สำหรับตาราง profiles)
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
