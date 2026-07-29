@@ -98,7 +98,7 @@ export default function AdminVipApprovalsPage() {
     }
 
     try {
-      // 1. ตรวจสอบหรือสร้างรหัสแนะนำ (Referral Code) ให้ผู้ใช้ที่กำลังอนุมัติ
+      // 1. ดึงข้อมูลโปรไฟล์ของผู้ใช้ที่กำลังอนุมัติ เพื่อดูว่าใครเป็นผู้แนะนำ (referred_by)
       const { data: profileCheck } = await supabase
         .from("profiles")
         .select("referral_code, referred_by")
@@ -141,24 +141,38 @@ export default function AdminVipApprovalsPage() {
 
       if (error) throw error;
 
-      // 3. ระบบคำนวณและจ่ายคอมมิชชัน 8% ให้ผู้แนะนำอัตโนมัติ (ถ้ามีคนแนะนำ)
+      // 3. จ่ายคอมมิชชัน 8% ให้ผู้แนะนำอัตโนมัติ
       if (profileCheck && profileCheck.referred_by) {
-        const refCode = profileCheck.referred_by.trim();
+        const refValue = profileCheck.referred_by.trim();
         
-        // ค้นหาข้อมูลผู้แนะนำจาก referral_code
-        const { data: referrer } = await supabase
+        // ค้นหาผู้แนะนำจาก referral_code หรือจาก id โดยตรง
+        let referrerId = null;
+        const { data: refByCode } = await supabase
           .from("profiles")
           .select("id")
-          .eq("referral_code", refCode)
+          .eq("referral_code", refValue)
           .single();
 
-        if (referrer) {
-          const planPrice = Number(selectedPlan) === 899 ? 899 : Number(selectedPlan) === 499 ? 499 : 99;
+        if (refByCode) {
+          referrerId = refByCode.id;
+        } else {
+          const { data: refById } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", refValue)
+            .single();
+          if (refById) referrerId = refById.id;
+        }
+
+        if (referrerId) {
+          let planPrice = 99;
+          if (selectedPlan === "499" || Number(selectedPlan) === 499) planPrice = 499;
+          if (selectedPlan === "899" || Number(selectedPlan) === 899) planPrice = 899;
+
           const commissionAmount = planPrice * 0.08; // คำนวณ 8%
 
-          // บันทึกลงตาราง commissions
           await supabase.from("commissions").insert({
-            user_id: referrer.id,
+            user_id: referrerId,
             amount: commissionAmount,
             referred_id: userId,
             status: "approved"
@@ -166,7 +180,7 @@ export default function AdminVipApprovalsPage() {
         }
       }
 
-      alert(`✅ อนุมัติ VIP สำเร็จ! สร้างรหัสแนะนำ ${newReferralCode} และจ่ายคอมมิชชันให้ผู้แนะนำเรียบร้อยแล้ว`);
+      alert(`✅ อนุมัติ VIP สำเร็จ! สร้างรหัสแนะนำ ${newReferralCode} และบันทึกคอมมิชชันให้ผู้แนะนำเรียบร้อยแล้ว`);
       loadAdminData();
     } catch (error: any) {
       alert("เกิดข้อผิดพลาด: " + error.message);
@@ -308,7 +322,7 @@ export default function AdminVipApprovalsPage() {
                         <div className="text-xs text-slate-400">{user.email || user.id}</div>
                       </div>
                       <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
-                        แพ็กเกจ: {user.vip_plan === "99" ? "รายเดือน (99 ฿)" : user.vip_plan === "499" ? "6 เดือน (499 ฿)" : user.vip_plan === "899" ? "1 ปี (899 ฿)" : `${user.vip_plan || "99"} ฿`}
+                        แพ็กเกจ: {user.vip_plan === "99" ? "รายเดือน (99 ฿)" : user.vip_plan === "499" ? "6 เดือน (499 ฿)" : user.vip_plan === "899" ? "1 ปี (899 ฿)" : `${user.vip_plan || "899"} ฿`}
                       </span>
                     </div>
 
@@ -325,7 +339,7 @@ export default function AdminVipApprovalsPage() {
 
                     <div className="flex gap-3 pt-2">
                       <button
-                        onClick={() => handleApprove(user.id, user.vip_plan || "99")}
+                        onClick={() => handleApprove(user.id, user.vip_plan || "899")}
                         className="flex-1 rounded-xl bg-green-600 hover:bg-green-500 py-2.5 text-xs font-bold text-white transition cursor-pointer shadow-lg"
                       >
                         ✅ อนุมัติ & สร้างรหัสแนะนำ
