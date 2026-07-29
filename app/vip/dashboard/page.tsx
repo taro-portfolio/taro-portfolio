@@ -16,7 +16,6 @@ export default function VipDashboardPage() {
   const [lang, setLang] = useState<Language>("th");
   const t = translations[lang];
 
-  // State สำหรับเก็บข้อมูลสถิติแบบเรียลไทม์
   const [stats, setStats] = useState({
     totalEarnings: 0,
     totalClicks: 0,
@@ -39,16 +38,10 @@ export default function VipDashboardPage() {
       .eq("id", user.id)
       .single();
 
-    // ป้องกันเข้มงวด: หากไม่พบข้อมูลโปรไฟล์หรือไม่ได้เป็น VIP ให้ดีดกลับไปหน้า /vip ทันที
-    if (!profile || !profile.is_vip) {
-      router.replace("/vip");
-      return;
-    }
+    // 🌟 เอาเงื่อนไขดีดกลับออกแล้ว! เปิดให้เข้าชมได้อิสระ
+    setUserName(profile?.first_name || user.email?.split("@")[0] || "VIP Member");
 
-    setUserName(profile.first_name || user.email?.split("@")[0] || "VIP Member");
-
-    // ดึงข้อมูลผู้ที่สมัครผ่านรหัสแนะนำ (referral_code หรือ ID)
-    const refCode = profile.referral_code || user.id.substring(0, 8);
+    const refCode = profile?.referral_code || user.id.substring(0, 8);
     const { data: referrals } = await supabase
       .from("profiles")
       .select("is_vip")
@@ -56,8 +49,8 @@ export default function VipDashboardPage() {
 
     const signupsCount = referrals ? referrals.length : 0;
     const vipsCount = referrals ? referrals.filter((item) => item.is_vip).length : 0;
-    const clicksCount = profile.affiliate_clicks || 0;
-    const earnings = vipsCount * 300; // สมมติคอมมิชชัน 300 บาทต่อ VIP 1 คน
+    const clicksCount = profile?.affiliate_clicks || 0;
+    const earnings = vipsCount * 300;
 
     setStats({
       totalEarnings: earnings,
@@ -78,7 +71,7 @@ export default function VipDashboardPage() {
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="flex items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-          <h1 className="text-xl font-semibold text-slate-300">กำลังตรวจสอบสิทธิ์ VIP...</h1>
+          <h1 className="text-xl font-semibold text-slate-300">กำลังโหลดข้อมูล...</h1>
         </div>
       </main>
     );
@@ -110,10 +103,8 @@ export default function VipDashboardPage() {
             </div>
           </header>
 
-          {/* สถิติ 4 ช่องแบบเรียลไทม์ */}
           <section className="mb-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               
-              {/* ช่องที่ 1: คอมมิชชันที่ทำได้ */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-3xl">💸</div>
                   <div>
@@ -125,7 +116,6 @@ export default function VipDashboardPage() {
                   </div>
               </div>
 
-              {/* ช่องที่ 2: จำนวนคลิก Affiliate ทั้งหมด */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-sky-600/20 border border-sky-500/30 flex items-center justify-center text-3xl">🔗</div>
                   <div>
@@ -137,7 +127,6 @@ export default function VipDashboardPage() {
                   </div>
               </div>
 
-              {/* ช่องที่ 3: สมัครสมาชิกสำเร็จ */}
               <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-3xl">👥</div>
                   <div>
@@ -149,7 +138,6 @@ export default function VipDashboardPage() {
                   </div>
               </div>
 
-              {/* ช่องที่ 4: สมาชิก VIP ที่แนะนำสำเร็จ */}
                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-3xl">⭐</div>
                   <div>
