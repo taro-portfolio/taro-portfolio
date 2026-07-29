@@ -35,11 +35,10 @@ export default function AdminVipApprovalsPage() {
         return;
       }
 
-      // 1. ดึงรายการรออนุมัติจากตาราง profiles ที่ vip_status = 'pending' และมี slip_url
+      // 1. ดึงทุกคนใน profiles ที่มี slip_url (ไม่จำกัดว่าจะเก็บสถานะอะไรไว้ เพื่อให้สลิปโผล่ขึ้นมาให้แอดมินเห็นแน่นอน)
       const { data: pending, error: pendingError } = await supabase
         .from("profiles")
         .select("*")
-        .eq("vip_status", "pending")
         .not("slip_url", "is", null)
         .order("created_at", { ascending: false });
 
@@ -92,12 +91,13 @@ export default function AdminVipApprovalsPage() {
   async function handleApprove(userId: string, plan: string) {
     const now = new Date();
     let expireDate = new Date();
+    const selectedPlan = plan || "99";
 
-    if (plan === "99") {
+    if (selectedPlan === "99" || selectedPlan.includes("99")) {
       expireDate.setDate(now.getDate() + 30);
-    } else if (plan === "499") {
+    } else if (selectedPlan === "499" || selectedPlan.includes("499")) {
       expireDate.setDate(now.getDate() + 180);
-    } else if (plan === "899") {
+    } else if (selectedPlan === "899" || selectedPlan.includes("899")) {
       expireDate.setFullYear(now.getFullYear() + 1);
     } else {
       expireDate.setDate(now.getDate() + 30);
