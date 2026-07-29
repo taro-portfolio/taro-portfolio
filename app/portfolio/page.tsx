@@ -122,6 +122,10 @@ export default function PortfolioPage() {
     }
   }
 
+  // 🌟 ตัวแปลงเรตเงินตามสกุลเงินที่เลือก (THB หรือ USD)
+  const currencyMultiplier = currency === "USD" ? 1 / exchangeRate : 1;
+  const currencySymbol = currency === "USD" ? "$" : "฿";
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
@@ -214,14 +218,14 @@ export default function PortfolioPage() {
                 onClick={() => setOpenCashModal(true)}
                 className="rounded-xl bg-slate-900 border border-slate-700/80 px-5 py-2.5 font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-2 text-sm cursor-pointer shadow-sm"
               >
-                <span>💵</span> แก้ไขเงินสด <span className="text-indigo-400">(฿{cash.toLocaleString()})</span>
+                <span>💵</span> แก้ไขเงินสด <span className="text-indigo-400">({currencySymbol}{(cash * currencyMultiplier).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
               </button>
             </div>
 
             <div className="rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2.5 text-xs md:text-sm font-semibold text-slate-300 flex items-center gap-2">
               <span className="text-slate-400">กำไร/ขาดทุนที่ขายแล้ว (Realized P/L):</span> 
               <span className={`font-bold ${realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {realizedPnl >= 0 ? "+" : ""}{realizedPnl.toFixed(2)} ฿
+                {realizedPnl >= 0 ? "+" : ""}{(realizedPnl * currencyMultiplier).toFixed(2)} {currencySymbol}
               </span>
             </div>
           </div>
@@ -251,9 +255,9 @@ export default function PortfolioPage() {
                       <th className="px-4 py-4">TICKER</th>
                       <th className="px-4 py-4">ตลาด</th>
                       <th className="px-4 py-4 text-right">จำนวน</th>
-                      <th className="px-4 py-4 text-right">ราคาทำรายการ (฿)</th>
-                      <th className="px-4 py-4 text-right">ราคาปัจจุบัน (฿)</th>
-                      <th className="px-4 py-4 text-right">กำไร / ขาดทุน (฿)</th>
+                      <th className="px-4 py-4 text-right">ราคาทำรายการ ({currencySymbol})</th>
+                      <th className="px-4 py-4 text-right">ราคาปัจจุบัน ({currencySymbol})</th>
+                      <th className="px-4 py-4 text-right">กำไร / ขาดทุน ({currencySymbol})</th>
                       <th className="px-4 py-4 text-right">% กำไร/ขาดทุน</th>
                       <th className="px-4 py-4 text-center">จัดการ</th>
                     </tr>
@@ -263,8 +267,8 @@ export default function PortfolioPage() {
                     {stocks.map((item) => {
                       const isBuy = item.type === "BUY";
                       const qty = Number(item.quantity || 0);
-                      const buyPrice = Number(item.buy_price || 0);
-                      const currentPrice = prices[item.symbol] || buyPrice;
+                      const buyPrice = Number(item.buy_price || 0) * currencyMultiplier;
+                      const currentPrice = (prices[item.symbol] || Number(item.buy_price || 0)) * currencyMultiplier;
                       const pnl = (currentPrice - buyPrice) * qty;
                       const pnlPercent = buyPrice > 0 ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
                       const isPositive = pnl >= 0;

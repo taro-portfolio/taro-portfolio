@@ -316,6 +316,10 @@ export default function Dashboard() {
     return curr === "THB" ? "฿" : "$";
   }
 
+  // 🌟 คำนวณยอดเงินสดที่ใช้ซื้อหุ้นและขายหุ้นจริง
+  let totalMoneySpentOnStocks = 0;
+  let totalMoneyReceivedFromSells = 0;
+
   const stockNetMap: Record<string, { symbol: string; market: string; quantity: number; totalCost: number; fee: number; buy_date: string }> = {};
 
   rawStocks.forEach((item) => {
@@ -324,6 +328,12 @@ export default function Dashboard() {
     const price = Number(item.buy_price || 0);
     const fee = Number(item.fee || 0);
     const isSell = item.type === "SELL";
+
+    if (isSell) {
+      totalMoneyReceivedFromSells += (price * qty) - fee;
+    } else {
+      totalMoneySpentOnStocks += (price * qty) + fee;
+    }
 
     if (!stockNetMap[symbol]) {
       stockNetMap[symbol] = { symbol, market: item.market, quantity: 0, totalCost: 0, fee: 0, buy_date: item.buy_date };
@@ -354,8 +364,11 @@ export default function Dashboard() {
   });
 
   const actualCashCurrency = cashCurrency || "THB";
-  const mainCash = convertCurrency(cash, actualCashCurrency, currency);
-  const altCash = convertCurrency(cash, actualCashCurrency, currency === "THB" ? "USD" : "THB");
+  
+  // 🌟 เงินสดไดนามิก (เงินตั้งต้น + ขายได้ - ซื้อไป)
+  const netDynamicCash = cash - totalMoneySpentOnStocks + totalMoneyReceivedFromSells;
+  const mainCash = convertCurrency(netDynamicCash, actualCashCurrency, currency);
+  const altCash = convertCurrency(netDynamicCash, actualCashCurrency, currency === "THB" ? "USD" : "THB");
 
   const totalStockCost = aggregatedStocks.reduce((sum, stock) => {
     const stockCurr: "THB" | "USD" = stock.market === "US" ? "USD" : "THB";
