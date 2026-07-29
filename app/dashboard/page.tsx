@@ -438,24 +438,26 @@ export default function Dashboard() {
 
       <main className="min-h-screen bg-slate-950 text-slate-100">
         
-        {/* 🌟 ป้ายไฟ LED วิ่งประกาศ (Marquee) ใต้แถบเมนู แบบแสดงผลบังคับ 100% */}
-        <div style={{ width: '100%', background: 'linear-gradient(to right, #451a03, #3b0764, #1e1b4b)', borderTop: '2px solid rgba(245, 158, 11, 0.6)', borderBottom: '2px solid rgba(245, 158, 11, 0.6)', boxShadow: '0 0 25px rgba(245, 158, 11, 0.4)', padding: '10px 0', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', width: 'max-content', animation: 'ledScroll 25s linear infinite' }}>
-            <div style={{ display: 'flex', alignItems: 'center', paddingRight: '50px' }}>
-              <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#fbbf24', textShadow: '0 0 10px rgba(251, 191, 36, 0.9)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '18px' }}>🔥</span> 
-                {lang === "th" 
-                  ? "ขอเชิญท่านสมาชิก แนะนำเพื่อนมาทดลองใช้งาน ระบบ TARO Portfolio เชิญเพื่อนใช้งาน 10 คน รับสิทธิ์เป็นสมาชิก VIP 1 เดือนทันที! 🚀" 
-                  : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', paddingRight: '50px' }}>
-              <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#22d3ee', textShadow: '0 0 10px rgba(34, 211, 238, 0.9)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '18px' }}>⭐</span> 
-                {lang === "th" 
-                  ? "ยิ่งชวนมาก ยิ่งได้สิทธิ์ VIP ยาวนานขึ้น มาร่วมเป็นส่วนหนึ่งของครอบครัว TARO กันเถอะ!" 
-                  : "✨ Share the smart way to track investments with your network today!"}
-              </span>
+        {/* 🌟 แถบประกาศข้อความวิ่ง (Marquee) ไม่อมขอบซ้ายขวา คมชัด อ่านง่าย ความเร็วพอดี */}
+        <div className="mx-auto max-w-7xl px-4 pt-6">
+          <div style={{ width: '100%', background: 'linear-gradient(to right, #2e1065, #1e1b4b, #31103f)', border: '1px solid rgba(139, 92, 246, 0.4)', borderRadius: '12px', padding: '10px 16px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', width: 'max-content', animation: 'ledScroll 42s linear infinite' }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginRight: '75px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#facc15', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '16px' }}>🔥</span> 
+                  {lang === "th" 
+                    ? "ขอเชิญท่านสมาชิก แนะนำเพื่อนมาทดลองใช้งาน ระบบ TARO Portfolio เชิญเพื่อนใช้งาน 10 คน รับสิทธิ์เป็นสมาชิก VIP 1 เดือนทันที! 🚀" 
+                    : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', marginRight: '75px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '16px' }}>⭐</span> 
+                  {lang === "th" 
+                    ? "ขอเชิญท่านสมาชิก แนะนำเพื่อนมาทดลองใช้งาน ระบบ TARO Portfolio เชิญเพื่อนใช้งาน 10 คน รับสิทธิ์เป็นสมาชิก VIP 1 เดือนทันที! 🚀" 
+                    : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -895,11 +897,11 @@ export default function Dashboard() {
         }}
       />
 
-      {/* 🌟 บังคับใส่ CSS Animation วิ่งข้ามหน้าจอแบบชัวร์ 100% */}
+      {/* 🌟 CSS Animation วิ่งด้วยความเร็วช้ากำลังดีและวนต่อกันอย่างราบรื่น */}
       <style jsx global>{`
         @keyframes ledScroll {
-          0% { transform: translateX(100vw); }
-          100% { transform: translateX(-100%); }
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-50%); }
         }
       `}</style>
     </>
