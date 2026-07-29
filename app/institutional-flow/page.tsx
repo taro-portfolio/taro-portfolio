@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import { getStockPrice } from "@/lib/stock";
@@ -16,7 +17,6 @@ export default function InstitutionalFlowPage() {
   const [lang, setLang] = useState<Language>("th");
   const t = translations[lang];
 
-  // ข้อมูลจำลอง Institutional Flow และ EMA Analysis ตามหุ้นที่ค้นหา
   const [flowData, setFlowData] = useState({
     institutionalInflow: "+$450.2M",
     flowStatus: "แรงซื้อหนาแน่นจากกองทุนใหญ่ (Strong Institutional Accumulation)",
@@ -35,7 +35,6 @@ export default function InstitutionalFlowPage() {
         return;
       }
 
-      // เช็คสิทธิ์ VIP
       const { data: profile } = await supabase
         .from("profiles")
         .select("is_vip")
@@ -56,7 +55,6 @@ export default function InstitutionalFlowPage() {
   }, [router]);
 
   const updateFlowMetrics = (currentPrice: number, ticker: string) => {
-    // คำนวณจำลองข้อมูลเชิงลึกตามราคาหุ้นจริงเพื่อให้สมจริง
     const seed = ticker.charCodeAt(0);
     const inflow = ((seed * currentPrice) % 800) - 200;
     const isPositive = inflow >= 0;
@@ -100,13 +98,16 @@ export default function InstitutionalFlowPage() {
       <main className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4">
         <div className="mx-auto max-w-6xl space-y-8">
           
-          {/* Header */}
+          {/* Header พร้อมปุ่มกลับแดชบอร์ด */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
             <div>
-              <span className="inline-block px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold uppercase mb-2">
-                🏛️ VIP Institutional Flow & Smart Money Tracker
-              </span>
-              <h1 className="text-2xl md:text-3xl font-black text-white">
+              <Link 
+                href="/vip" 
+                className="inline-flex items-center gap-2 text-xs font-bold text-indigo-400 hover:text-indigo-300 mb-3 bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/20 transition"
+              >
+                ← กลับหน้าแดชบอร์ด VIP
+              </Link>
+              <h1 className="text-2xl md:text-3xl font-black text-white mt-1">
                 วิเคราะห์เส้น EMA & กระแสเงินลงทุนกองทุนสถาบัน
               </h1>
               <p className="text-xs md:text-sm text-slate-400 mt-1">
@@ -114,7 +115,6 @@ export default function InstitutionalFlowPage() {
               </p>
             </div>
 
-            {/* ช่องค้นหาหุ้น */}
             <form onSubmit={handleSearch} className="flex items-center gap-2 bg-slate-900 p-2 rounded-xl border border-slate-800">
               <input
                 type="text"
@@ -129,7 +129,7 @@ export default function InstitutionalFlowPage() {
             </form>
           </div>
 
-          {/* สรุปข้อมูลหลักของหุ้นที่เลือก */}
+          {/* สรุปข้อมูลหลัก */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="rounded-2xl bg-slate-900/80 p-6 border border-slate-800 shadow-xl">
               <div className="text-xs text-slate-400 font-bold mb-1">หุ้นที่วิเคราะห์ (Symbol)</div>
@@ -158,8 +158,6 @@ export default function InstitutionalFlowPage() {
 
           {/* ตารางวิเคราะห์เส้น EMA และ แนวรับ-แนวต้าน */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* โครงสร้างเส้น EMA */}
             <div className="rounded-2xl bg-slate-900/90 p-6 border border-slate-800 shadow-xl">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <span>📈</span> สภาพโครงสร้างเส้น EMA (Multi-Timeframe)
@@ -180,7 +178,6 @@ export default function InstitutionalFlowPage() {
               </div>
             </div>
 
-            {/* โซนแนวรับ แนวต้านอัตโนมัติ */}
             <div className="rounded-2xl bg-slate-900/90 p-6 border border-slate-800 shadow-xl">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <span>🎯</span> โซนแนวรับ & แนวต้านคำนวณด้วย Institutional Flow
@@ -200,7 +197,6 @@ export default function InstitutionalFlowPage() {
                 </div>
               </div>
             </div>
-
           </div>
 
         </div>
