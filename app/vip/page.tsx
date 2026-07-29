@@ -463,12 +463,12 @@ export default function VipPage() {
 
             </div>
 
-            {/* 🌟 2 ช่องการ์ดฟีเจอร์ VIP แบบคลิกใช้งานได้จริง (ลิงก์ไปหน้า /live-stock-news) */}
+            {/* 🌟 2 ช่องการ์ดฟีเจอร์ VIP พุ่งตรงไปยังหน้า /institutional-flow ที่สร้างขึ้นใหม่ */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* ฟีเจอร์ที่ 1: แนวรับ-แนวต้าน & บิ๊กออเดอร์เรียลไทม์ */}
               <Link 
-                href="/live-stock-news"
+                href="/institutional-flow"
                 className="rounded-3xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 p-8 shadow-xl flex flex-col justify-between transition hover:border-purple-500 hover:scale-[1.01] cursor-pointer block"
               >
                 <div>
@@ -490,7 +490,7 @@ export default function VipPage() {
 
               {/* ฟีเจอร์ที่ 2: เส้น EMA & คำสั่งซื้อของกองทุน */}
               <Link 
-                href="/live-stock-news"
+                href="/institutional-flow"
                 className="rounded-3xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 border border-indigo-500/30 p-8 shadow-xl flex flex-col justify-between transition hover:border-indigo-500 hover:scale-[1.01] cursor-pointer block"
               >
                 <div>
