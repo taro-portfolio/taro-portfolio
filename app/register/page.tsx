@@ -110,14 +110,27 @@ export default function RegisterPage() {
         // 🌟 3. ระบบอัปเดตยอดเชิญ (+1) และต่ออายุ VIP อัตโนมัติให้ผู้แนะนำ (ถ้ามีรหัสผู้แนะนำ)
         if (finalRefCode) {
           try {
-            // ค้นหาโปรไฟล์ของเจ้าของรหัสแนะนำ (referrer) โดยใช้ ID หรือโค้ดแนะนำ
-            const { data: referrerProfile, error: refFindError } = await supabase
+            // 🔍 ค้นหาโปรไฟล์ของเจ้าของรหัสแนะนำ (รองรับทั้งรหัสโปรโมท AF... และ User ID)
+            let referrerProfile = null;
+            
+            const { data: byCode } = await supabase
               .from("profiles")
               .select("id, invite_count, vip_expires_at")
-              .eq("id", finalRefCode) // สมมติว่าใช้ user.id เป็นรหัสแนะนำ
-              .single();
+              .eq("referral_code", finalRefCode)
+              .maybeSingle();
 
-            if (!refFindError && referrerProfile) {
+            if (byCode) {
+              referrerProfile = byCode;
+            } else {
+              const { data: byId } = await supabase
+                .from("profiles")
+                .select("id, invite_count, vip_expires_at")
+                .eq("id", finalRefCode)
+                .maybeSingle();
+              referrerProfile = byId;
+            }
+
+            if (referrerProfile) {
               const newInviteCount = (referrerProfile.invite_count || 0) + 1;
               let updateData: any = { invite_count: newInviteCount };
 
@@ -127,12 +140,11 @@ export default function RegisterPage() {
                   ? new Date(referrerProfile.vip_expires_at) 
                   : new Date();
                 
-                // ถ้ายثหมดอายุไปแล้ว ให้เริ่มนับจากวันนี้ ถ้ายังไม่หมดอายุให้นับบวกเพิ่มไปอีก 30 วัน
                 const baseDate = currentVipExpiry > new Date() ? currentVipExpiry : new Date();
                 baseDate.setDate(baseDate.getDate() + 30);
 
                 updateData.vip_expires_at = baseDate.toISOString();
-                updateData.is_vip = true; // เปิดสถานะ VIP ให้ทันที
+                updateData.is_vip = true;
               }
 
               // บันทึกข้อมูลอัปเดตกลับไปให้ผู้แนะนำ
