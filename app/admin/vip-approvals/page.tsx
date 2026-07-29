@@ -98,14 +98,14 @@ export default function AdminVipApprovalsPage() {
     }
 
     try {
-      // 1. ดึงข้อมูลโปรไฟล์ของผู้ใช้ที่กำลังอนุมัติ เพื่อดูว่าใครเป็นผู้แนะนำ (referred_by)
-      const { data: profileCheck } = await supabase
+      // 1. ดึงข้อมูลโปรไฟล์แบบสดๆ จากฐานข้อมูล เพื่อให้ได้ค่า referred_by ล่าสุดชัวร์ๆ
+      const { data: currentUserProfile } = await supabase
         .from("profiles")
         .select("referral_code, referred_by")
         .eq("id", userId)
         .single();
 
-      let newReferralCode = profileCheck?.referral_code;
+      let newReferralCode = currentUserProfile?.referral_code;
 
       if (!newReferralCode) {
         const { data: lastUser } = await supabase
@@ -141,12 +141,12 @@ export default function AdminVipApprovalsPage() {
 
       if (error) throw error;
 
-      // 3. จ่ายคอมมิชชัน 8% ให้ผู้แนะนำอัตโนมัติ
-      if (profileCheck && profileCheck.referred_by) {
-        const refValue = profileCheck.referred_by.trim();
+      // 3. ระบบจ่ายคอมมิชชัน 8% อัตโนมัติ โดยเช็คจาก referred_by ที่มีอยู่แล้ว
+      if (currentUserProfile && currentUserProfile.referred_by) {
+        const refValue = currentUserProfile.referred_by.trim();
         
-        // ค้นหาผู้แนะนำจาก referral_code หรือจาก id โดยตรง
         let referrerId = null;
+        // ค้นหา ID ของผู้แนะนำจากรหัสแนะนำ (referral_code)
         const { data: refByCode } = await supabase
           .from("profiles")
           .select("id")
@@ -156,6 +156,7 @@ export default function AdminVipApprovalsPage() {
         if (refByCode) {
           referrerId = refByCode.id;
         } else {
+          // หรือค้นหาจาก id ตรงๆ
           const { data: refById } = await supabase
             .from("profiles")
             .select("id")
@@ -171,6 +172,7 @@ export default function AdminVipApprovalsPage() {
 
           const commissionAmount = planPrice * 0.08; // คำนวณ 8%
 
+          // บันทึกลงตาราง commissions ทันที
           await supabase.from("commissions").insert({
             user_id: referrerId,
             amount: commissionAmount,
@@ -180,7 +182,7 @@ export default function AdminVipApprovalsPage() {
         }
       }
 
-      alert(`✅ อนุมัติ VIP สำเร็จ! สร้างรหัสแนะนำ ${newReferralCode} และบันทึกคอมมิชชันให้ผู้แนะนำเรียบร้อยแล้ว`);
+      alert(`✅ อนุมัติ VIP สำเร็จ! สร้างรหัสแนะนำ ${newReferralCode} และบันทึกคอมมิชชันให้ผู้แนะนำอัตโนมัติเรียบร้อยแล้ว`);
       loadAdminData();
     } catch (error: any) {
       alert("เกิดข้อผิดพลาด: " + error.message);
