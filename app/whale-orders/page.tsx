@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import Navbar from "@/components/Navbar";
 import { getStockPrice } from "@/lib/stock";
 import { translations, Language } from "@/lib/i18n";
 
@@ -101,7 +100,26 @@ export default function WhaleOrdersPage() {
 
   return (
     <>
-      <Navbar lang={lang} setLang={setLang} />
+      {/* Navbar แบบกำหนดเองสำหรับหน้า VIP */}
+      <nav className="w-full bg-slate-900 border-b border-slate-800 py-3 px-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-xl font-black text-white tracking-wider">TARO <span className="text-purple-400 text-xs px-2 py-0.5 rounded bg-purple-500/20 border border-purple-500/30">VIP PORTAL</span></span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link href="/vip" className="text-xs font-bold text-slate-300 hover:text-white transition">
+            หน้าหลัก VIP
+          </Link>
+          <button 
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.replace("/login");
+            }}
+            className="text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/20 transition cursor-pointer"
+          >
+            ออกจากระบบ
+          </button>
+        </div>
+      </nav>
 
       <main className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4">
         <div className="mx-auto max-w-6xl space-y-8">
