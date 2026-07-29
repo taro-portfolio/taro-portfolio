@@ -35,7 +35,7 @@ export default function AdminVipApprovalsPage() {
         return;
       }
 
-      // 1. ดึงทุกคนใน profiles ที่มี slip_url (ไม่จำกัดว่าจะเก็บสถานะอะไรไว้ เพื่อให้สลิปโผล่ขึ้นมาให้แอดมินเห็นแน่นอน)
+      // 1. ดึงรายการรออนุมัติจากตาราง profiles ที่มี slip_url ไม่เป็น null (ดึงคนที่ส่งสลิปจากหน้า pay มาแสดงทั้งหมด)
       const { data: pending, error: pendingError } = await supabase
         .from("profiles")
         .select("*")
@@ -93,11 +93,11 @@ export default function AdminVipApprovalsPage() {
     let expireDate = new Date();
     const selectedPlan = plan || "99";
 
-    if (selectedPlan === "99" || selectedPlan.includes("99")) {
+    if (selectedPlan === "99") {
       expireDate.setDate(now.getDate() + 30);
-    } else if (selectedPlan === "499" || selectedPlan.includes("499")) {
+    } else if (selectedPlan === "499") {
       expireDate.setDate(now.getDate() + 180);
-    } else if (selectedPlan === "899" || selectedPlan.includes("899")) {
+    } else if (selectedPlan === "899") {
       expireDate.setFullYear(now.getFullYear() + 1);
     } else {
       expireDate.setDate(now.getDate() + 30);
@@ -132,7 +132,7 @@ export default function AdminVipApprovalsPage() {
         newReferralCode = `AF2026${paddedNum}`;
       }
 
-      // อัปเดตสถานะเป็น active และเคลียร์ slip_url ออก
+      // อัปเดตสถานะเป็น active, ตั้งค่าวันหมดอายุ, สร้างรหัสแนะนำ และเคลียร์ slip_url ออก
       const { error } = await supabase
         .from("profiles")
         .update({
