@@ -32,7 +32,6 @@ export default function Dashboard() {
 
   const [selectedStockSymbol, setSelectedStockSymbol] = useState<string | null>(null);
 
-  // 🌟 Watchlist หุ้นสหรัฐ (US)
   const [usWatchlist, setUsWatchlist] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("taro_us_watchlist");
@@ -117,11 +116,10 @@ export default function Dashboard() {
       const res = await fetch("https://open.er-api.com/v6/latest/USD");
       const data = await res.json();
       if (data && data.rates && data.rates.THB) {
-        setExchangeRate(data.rates.THB);
+        setExchangeRate(Number(data.rates.THB));
       }
     } catch (err) {
       console.error("Error loading exchange rate:", err);
-      setExchangeRate(35);
     }
   }
 
@@ -300,27 +298,17 @@ export default function Dashboard() {
     }
   }
 
-  function convertCurrency(
-    amount: number,
-    fromCurrency: "THB" | "USD",
-    targetCurrency: "THB" | "USD"
-  ) {
-    const rate = exchangeRate || 35;
-    if (fromCurrency === targetCurrency) return amount;
-    if (fromCurrency === "USD" && targetCurrency === "THB") return amount * rate;
-    if (fromCurrency === "THB" && targetCurrency === "USD") return amount / rate;
-    return amount;
-  }
-
   function currencySymbol(curr: "THB" | "USD") {
     return curr === "THB" ? "฿" : "$";
   }
 
-  // 🌟 คำนวณยอดเงินสดที่ใช้ซื้อหุ้นและขายหุ้นจริง
-  let totalMoneySpentOnStocks = 0;
-  let totalMoneyReceivedFromSells = 0;
+  // 🌟 แยกคำนวณเงินสดตามสกุลเงินจริง (กรอกสกุลเงินอะไร หักลบเพิ่มลดในสกุลเงินนั้น)
+  let totalSpentTHB = 0;
+  let totalReceivedTHB = 0;
+  let totalSpentUSD = 0;
+  let totalReceivedUSD = 0;
 
-  const stockNetMap: Record<string, { symbol: string; market: string; quantity: number; totalCost: number; fee: number; buy_date: string }> = {};
+  const stockNetMap: Record<string, { symbol: string; market: string; quantity: number; totalCost: number; fee: number; buy_date: string; currency: string }> = {};
 
   rawStocks.forEach((item) => {
     const symbol = item.symbol;
@@ -328,15 +316,24 @@ export default function Dashboard() {
     const price = Number(item.buy_price || 0);
     const fee = Number(item.fee || 0);
     const isSell = item.type === "SELL";
+    const isUS = item.market === "US"; // หุ้น US เป็น USD, หุ้นไทยเป็น THB
 
-    if (isSell) {
-      totalMoneyReceivedFromSells += (price * qty) - fee;
+    if (isUS) {
+      if (isSell) {
+        totalReceivedUSD += (price * qty) - fee;
+      } else {
+        totalSpentUSD += (price * qty) + fee;
+      }
     } else {
-      totalMoneySpentOnStocks += (price * qty) + fee;
+      if (isSell) {
+        totalReceivedTHB += (price * qty) - fee;
+      } else {
+        totalSpentTHB += (price * qty) + fee;
+      }
     }
 
     if (!stockNetMap[symbol]) {
-      stockNetMap[symbol] = { symbol, market: item.market, quantity: 0, totalCost: 0, fee: 0, buy_date: item.buy_date };
+      stockNetMap[symbol] = { symbol, market: item.market, quantity: 0, totalCost: 0, fee: 0, buy_date: item.buy_date, currency: isUS ? "USD" : "THB" };
     }
 
     if (isSell) {
@@ -363,39 +360,58 @@ export default function Dashboard() {
     };
   });
 
-  const actualCashCurrency = cashCurrency || "THB";
-  
-  // 🌟 เงินสดไดนามิก (เงินตั้งต้น + ขายได้ - ซื้อไป)
-  const netDynamicCash = cash - totalMoneySpentOnStocks + totalMoneyReceivedFromSells;
-  const mainCash = convertCurrency(netDynamicCash, actualCashCurrency, currency);
-  const altCash = convertCurrency(netDynamicCash, actualCashCurrency, currency === "THB" ? "USD" : "THB");
+  // เงินสดจริงตามที่ผู้ใช้ตั้งค่าไว้ใน CashModal
+  const cashAmount = cash;
+  const isCashUSD = cashCurrency === "USD";
 
-  const totalStockCost = aggregatedStocks.reduce((sum, stock) => {
-    const stockCurr: "THB" | "USD" = stock.market === "US" ? "USD" : "THB";
-    return sum + convertCurrency(stock.totalCost, stockCurr, currency);
-  }, 0);
+  // คำนวณเงินสดคงเหลือแยกตามสกุลเงินจริง
+  const netCashTHB = (!isCashUSD ? cashAmount : 0) - totalSpentTHB + totalReceivedTHB;
+  const netCashUSD = (isCashUSD ? cashAmount : 0) - totalSpentUSD + totalReceivedUSD;
 
-  const currentValue = aggregatedStocks.reduce((sum, stock) => {
-    const stockCurr: "THB" | "USD" = stock.market === "US" ? "USD" : "THB";
+  // แปลงภาพรวมทั้งหมดตามปุ่มที่เลือกแสดงผลด้านบน (THB หรือ USD)
+  const rate = exchangeRate || 35;
+  const displayInUSD = currency === "USD";
+
+  // แปลงเงินสดให้ตรงกับหน้าจอที่เลือกแสดงผล
+  const mainCash = displayInUSD ? (netCashUSD + (netCashTHB / rate)) : (netCashTHB + (netCashUSD * rate));
+  const altCash = displayInUSD ? (netCashTHB + (netCashUSD * rate)) : (netCashUSD + (netCashTHB / rate));
+
+  // มูลค่าหุ้นในพอร์ต
+  let totalStockCost = 0;
+  let currentValue = 0;
+
+  aggregatedStocks.forEach((stock) => {
+    const isUS = stock.market === "US";
     const apiPrice = prices[stock.symbol] || 0;
     const curPrice = apiPrice > 0 ? apiPrice : stock.buy_price;
-    return sum + convertCurrency(curPrice * stock.quantity, stockCurr, currency);
-  }, 0);
+
+    const stockCostVal = stock.totalCost;
+    const stockVal = curPrice * stock.quantity;
+
+    if (isUS) {
+      // หุ้น US เป็น USD
+      totalStockCost += displayInUSD ? stockCostVal : (stockCostVal * rate);
+      currentValue += displayInUSD ? stockVal : (stockVal * rate);
+    } else {
+      // หุ้นไทย เป็น THB
+      totalStockCost += displayInUSD ? (stockCostVal / rate) : stockCostVal;
+      currentValue += displayInUSD ? (stockVal / rate) : stockVal;
+    }
+  });
 
   const totalPortfolioValue = currentValue + mainCash;
-
   const profitLoss = currentValue - totalStockCost;
-  const totalProfitPercent = totalStockCost > 0 ? (profitLoss / totalStockCost) * 100 : 0;
-
-  const altCurrentValue = convertCurrency(currentValue, currency, currency === "THB" ? "USD" : "THB");
-  const altProfitLoss = convertCurrency(profitLoss, currency, currency === "THB" ? "USD" : "THB");
+  const altCurrentValue = displayInUSD ? (currentValue * rate) : (currentValue / rate);
+  const altProfitLoss = displayInUSD ? (profitLoss * rate) : (profitLoss / rate);
 
   const chartData = [
     ...aggregatedStocks.map((stock) => {
-      const stockCurr: "THB" | "USD" = stock.market === "US" ? "USD" : "THB";
+      const isUS = stock.market === "US";
       const apiPrice = prices[stock.symbol] || 0;
       const curPrice = apiPrice > 0 ? apiPrice : stock.buy_price;
-      const val = convertCurrency(curPrice * stock.quantity, stockCurr, currency);
+      const valUSD = isUS ? (curPrice * stock.quantity) : ((curPrice * stock.quantity) / rate);
+      const valTHB = isUS ? ((curPrice * stock.quantity) * rate) : (curPrice * stock.quantity);
+      const val = displayInUSD ? valUSD : valTHB;
       const percentage = totalPortfolioValue > 0 ? (val / totalPortfolioValue) * 100 : 0;
 
       return {
@@ -656,14 +672,26 @@ export default function Dashboard() {
 
                   <tbody className="divide-y divide-slate-800/50 text-sm">
                     {aggregatedStocks.map((stock) => {
-                      const stockCurr: "THB" | "USD" = stock.market === "US" ? "USD" : "THB";
+                      const isUS = stock.market === "US";
                       const quantity = Number(stock.quantity || 0);
                       const rawBuyPrice = Number(stock.buy_price || 0);
                       const apiPrice = prices[stock.symbol] || 0;
                       const rawCurrentPrice = apiPrice > 0 ? apiPrice : rawBuyPrice;
 
-                      const buyPrice = convertCurrency(rawBuyPrice, stockCurr, currency);
-                      const currentPrice = convertCurrency(rawCurrentPrice, stockCurr, currency);
+                      let buyPrice = rawBuyPrice;
+                      let currentPrice = rawCurrentPrice;
+
+                      if (isUS) {
+                        if (currency === "THB") {
+                          buyPrice = rawBuyPrice * rate;
+                          currentPrice = rawCurrentPrice * rate;
+                        }
+                      } else {
+                        if (currency === "USD") {
+                          buyPrice = rawBuyPrice / rate;
+                          currentPrice = rawCurrentPrice / rate;
+                        }
+                      }
 
                       const totalStockCost = buyPrice * quantity;
                       const totalStockValue = currentPrice * quantity;
