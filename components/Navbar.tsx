@@ -51,13 +51,13 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
     router.replace("/");
   }
 
-  // ฟังก์ชันป้องกันและตรวจสอบสิทธิ์ VIP: ถ้ายังไม่เป็น VIP จะเด้งไปหน้าชำระเงิน (/vip/pay) ทันที
+  // ฟังก์ชันป้องกันและตรวจสอบสิทธิ์ VIP (บังคับเปลี่ยนหน้าด้วย window.location.href เพื่อความชัวร์)
   const handleVipProtectedClick = async (e: React.MouseEvent<HTMLAnchorElement>, targetPath: string) => {
     e.preventDefault();
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      router.push("/login");
+      window.location.href = "/login";
       return;
     }
 
@@ -68,9 +68,9 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
       .single();
 
     if (data && data.is_vip) {
-      router.push(targetPath);
+      window.location.href = targetPath; // 🌟 พุ่งตรงไปหน้าปลายทางทันที
     } else {
-      router.push("/vip/pay");
+      window.location.href = "/vip/pay";
     }
   };
 
@@ -201,7 +201,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "วิเคราะห์หุ้นเชิงลึกVIP" : "VIP Deep Analysis"}
             </a>
 
-            {/* สิทธิประโยชน์สมาชิก VIP (แก้ไขให้ชี้ไปที่ /vip/dashboard ตามโฟลเดอร์จริง) */}
+            {/* สิทธิประโยชน์สมาชิก VIP */}
             <a 
               href="/vip/dashboard" 
               onClick={(e) => handleVipProtectedClick(e, "/vip/dashboard")}
