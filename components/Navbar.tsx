@@ -19,6 +19,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/portfolio") ||
     pathname.startsWith("/live-stock-news") ||
+    pathname.startsWith("/vip/dashboard") ||
     pathname.startsWith("/vip") ||
     pathname.startsWith("/invite") ||
     pathname.startsWith("/affiliate-program") ||
@@ -118,7 +119,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
           )}
         </div>
 
-        {/* แถวล่าง: เมนูนำทางทั้งหมด (คลิกเข้าได้อิสระทุกปุ่ม) */}
+        {/* แถวล่าง: เมนูนำทางทั้งหมด */}
         {isDashboard && (
           <div className="flex items-center gap-5 overflow-x-auto border-t border-slate-800/80 py-3 text-sm text-slate-300 no-scrollbar">
             <Link href="/dashboard" className="whitespace-nowrap hover:text-white transition">
@@ -154,7 +155,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "วิเคราะห์หุ้นเชิงลึกVIP" : "VIP Deep Analysis"}
             </Link>
 
-            {/* สิทธิประโยชน์สมาชิก VIP */}
+            {/* สิทธิประโยชน์สมาชิก VIP (ชี้ตรงไปที่ /vip/dashboard) */}
             <Link 
               href="/vip/dashboard" 
               className="whitespace-nowrap rounded-lg bg-purple-600/20 border border-purple-500/40 px-3 py-1 text-xs font-bold text-purple-300 hover:bg-purple-600 hover:text-white transition cursor-pointer"
