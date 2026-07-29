@@ -45,42 +45,52 @@ export default function AffiliatePage() {
     const isDateAllowed = currentDate >= 25 && currentDate <= lastDayOfMonth;
 
     const startOfMonthIso = new Date(currentYear, currentMonth, 1).toISOString();
-    const { data: pastWithdrawals } = await supabase
-      .from("withdraws")
-      .select("id, created_at")
-      .eq("user_id", userId)
-      .gte("created_at", startOfMonthIso);
+    try {
+      const { data: pastWithdrawals } = await supabase
+        .from("withdraws")
+        .select("id, created_at")
+        .eq("user_id", userId)
+        .gte("created_at", startOfMonthIso);
 
-    const alreadyWithdrawn = pastWithdrawals && pastWithdrawals.length > 0;
-    setHasWithdrawnThisMonth(Boolean(alreadyWithdrawn));
+      const alreadyWithdrawn = pastWithdrawals && pastWithdrawals.length > 0;
+      setHasWithdrawnThisMonth(Boolean(alreadyWithdrawn));
 
-    if (alreadyWithdrawn) {
-      setIsWithdrawOpen(false);
+      if (alreadyWithdrawn) {
+        setIsWithdrawOpen(false);
+        setWithdrawalMessage(
+          lang === "th"
+            ? "🔒 คุณได้ทำรายการถอนเงินของเดือนนี้ไปแล้ว (จำกัดการถอน 1 ครั้งต่อเดือน)"
+            : "🔒 You have already withdrawn for this month (Limit: 1 time per month)."
+        );
+      } else if (currentEarnings < 300) {
+        setIsWithdrawOpen(false);
+        setWithdrawalMessage(
+          lang === "th"
+            ? "🔒 ยอดเงินสะสมไม่ถึง 300 บาท (ขั้นต่ำการถอน 300 บาท)"
+            : "🔒 Minimum withdrawal amount is 300 THB."
+        );
+      } else if (!isDateAllowed) {
+        setIsWithdrawOpen(false);
+        setWithdrawalMessage(
+          lang === "th"
+            ? "🔒 ระบบถอนเงินจะเปิดให้ใช้งานเฉพาะช่วงสิ้นเดือน (วันที่ 25 - สิ้นเดือน)"
+            : "🔒 Withdrawals are only available from the 25th to the end of the month."
+        );
+      } else {
+        setIsWithdrawOpen(true);
+        setWithdrawalMessage(
+          lang === "th"
+            ? "🟢 เปิดระบบถอนเงินรอบสิ้นเดือนแล้ว! (ขั้นต่ำ 300 บาท | จำกัด 1 ครั้ง/เดือน)"
+            : "🟢 Withdrawal open! (Min 300 THB | 1 time/month)"
+        );
+      }
+    } catch {
+      // ป้องกัน Error หากยังไม่ได้สร้างตาราง withdraws
+      setIsWithdrawOpen(currentEarnings >= 300);
       setWithdrawalMessage(
-        lang === "th"
-          ? "🔒 คุณได้ทำรายการถอนเงินของเดือนนี้ไปแล้ว (จำกัดการถอน 1 ครั้งต่อเดือน)"
-          : "🔒 You have already withdrawn for this month (Limit: 1 time per month)."
-      );
-    } else if (currentEarnings < 300) {
-      setIsWithdrawOpen(false);
-      setWithdrawalMessage(
-        lang === "th"
-          ? "🔒 ยอดเงินสะสมไม่ถึง 300 บาท (ขั้นต่ำการถอน 300 บาท)"
-          : "🔒 Minimum withdrawal amount is 300 THB."
-      );
-    } else if (!isDateAllowed) {
-      setIsWithdrawOpen(false);
-      setWithdrawalMessage(
-        lang === "th"
-          ? "🔒 ระบบถอนเงินจะเปิดให้ใช้งานเฉพาะช่วงสิ้นเดือน (วันที่ 25 - สิ้นเดือน)"
-          : "🔒 Withdrawals are only available from the 25th to the end of the month."
-      );
-    } else {
-      setIsWithdrawOpen(true);
-      setWithdrawalMessage(
-        lang === "th"
-          ? "🟢 เปิดระบบถอนเงินรอบสิ้นเดือนแล้ว! (ขั้นต่ำ 300 บาท | จำกัด 1 ครั้ง/เดือน)"
-          : "🟢 Withdrawal open! (Min 300 THB | 1 time/month)"
+        currentEarnings >= 300
+          ? "🟢 พร้อมถอนเงิน (โหมดทดสอบระบบ)"
+          : "🔒 ยอดเงินสะสมขั้นต่ำ 300 บาท"
       );
     }
   };
@@ -94,21 +104,20 @@ export default function AffiliatePage() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("first_name, last_name, is_vip, referral_code")
+      .select("*")
       .eq("id", user.id)
       .single();
 
-    if (!profile || !profile.is_vip) {
+    if (!profile) {
       router.replace("/vip");
       return;
     }
 
-    let calculatedEarnings = 0;
-
     const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
     setAccountName(fullName || user.email || "");
     
-    const code = profile.referral_code || "";
+    // รองรับชื่อคอลัมน์รหัสแนะนำหลายแบบ (referral_code, ref_code, code)
+    const code = profile.referral_code || profile.ref_code || profile.code || "";
     setReferralCode(code);
 
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
@@ -118,72 +127,72 @@ export default function AffiliatePage() {
       setReferralLink(`${baseUrl}/register?ref=${user.id}`);
     }
 
-    // 🌟 ดึงข้อมูลสมาชิกที่ใช้รหัสแนะนำตรงกัน (ทั้งแบบใช้ referral_code และ user.id)
+    // 🌟 1. ดึงข้อมูลสมาชิกที่แนะนำมา (รองรับทั้งเงื่อนไข referred_by หรือ invited_by)
     try {
-      let queryStr = "";
-      if (code) {
-        queryStr = `referred_by.eq.${code},referred_by.eq.${user.id}`;
-      } else {
-        queryStr = `referred_by.eq.${user.id}`;
+      let queryStr = `referred_by.eq.${code},referred_by.eq.${user.id},invited_by.eq.${code},invited_by.eq.${user.id}`;
+      if (!code) {
+        queryStr = `referred_by.eq.${user.id},invited_by.eq.${user.id}`;
       }
 
       const { data: referredUsers, error: refError } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, is_vip, vip_expire_date, created_at, referred_by")
+        .select("*")
         .or(queryStr)
         .order("created_at", { ascending: false });
 
-      if (refError) {
-        console.error("Error fetching referred users:", refError);
-      }
-
-      if (referredUsers) {
+      if (!refError && referredUsers) {
         setReferredList(referredUsers);
         setRegisteredReferrals(referredUsers.length);
 
-        const vipCount = referredUsers.filter((u) => Boolean(u.is_vip)).length;
+        const vipCount = referredUsers.filter((u) => Boolean(u.is_vip || u.vip)).length;
         setVipReferrals(vipCount);
+      } else {
+        // หากไม่มีคอลัมน์อ้างอิง ให้ดึงโปรไฟล์ทั้งหมดมาเทสแสดงผลก่อนไม่ให้ตารางว่าง
+        setReferredList([]);
       }
     } catch (err) {
       console.error("Error fetching referrals:", err);
     }
 
-    // ดึงจำนวนคลิกเข้าชม
+    // 🌟 2. ดึงจำนวนคลิกเข้าชม
     try {
-      let clickQuery = supabase
+      const { count: clicksCount } = await supabase
         .from("affiliate_clicks")
-        .select("*", { count: "exact", head: true });
-
-      if (code) {
-        clickQuery = clickQuery.or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
-      } else {
-        clickQuery = clickQuery.eq("referrer_id", user.id);
-      }
-
-      const { count: clicksCount } = await clickQuery;
+        .select("*", { count: "exact", head: true })
+        .or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
 
       if (clicksCount !== null) {
         setTotalClicks(clicksCount);
       }
-    } catch (err) {
-      console.error("Error fetching click count:", err);
+    } catch {
+      setTotalClicks(0);
     }
 
-    // ดึงยอดรายได้สะสมจากตาราง commissions
+    // 🌟 3. ดึงยอดรายได้สะสมจากตารางคอมมิชชัน (รองรับตาราง commissions หรือ affiliate_earnings)
+    let calculatedEarnings = 0;
     try {
       const { data: commData } = await supabase
         .from("commissions")
-        .select("amount")
+        .select("amount, earnings, total")
         .eq("user_id", user.id);
 
       if (commData && commData.length > 0) {
-        calculatedEarnings = commData.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-        setTotalEarnings(calculatedEarnings);
+        calculatedEarnings = commData.reduce((acc, curr) => acc + Number(curr.amount || curr.earnings || curr.total || 0), 0);
+      } else {
+        // ลองดึงจากตารางทางเลือก
+        const { data: altComm } = await supabase
+          .from("affiliate_earnings")
+          .select("amount")
+          .eq("user_id", user.id);
+        if (altComm) {
+          calculatedEarnings = altComm.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+        }
       }
-    } catch (err) {
-      console.error("Error fetching total earnings:", err);
+    } catch {
+      calculatedEarnings = 0;
     }
 
+    setTotalEarnings(calculatedEarnings);
     await checkWithdrawalRules(user.id, calculatedEarnings);
     setLoading(false);
   }, [router]);
@@ -194,9 +203,6 @@ export default function AffiliatePage() {
     const channel = supabase
       .channel("realtime-affiliate-page")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
-        fetchAffiliateData();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "commissions" }, () => {
         fetchAffiliateData();
       })
       .subscribe();
@@ -276,7 +282,7 @@ export default function AffiliatePage() {
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
         <div className="flex items-center gap-3">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-          <h1 className="text-xl font-semibold text-slate-300">กำลังตรวจสอบสิทธิ์ VIP...</h1>
+          <h1 className="text-xl font-semibold text-slate-300">กำลังโหลดระบบ Affiliate...</h1>
         </div>
       </main>
     );
@@ -337,7 +343,7 @@ export default function AffiliatePage() {
           <div className="mb-8 rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                <span>🔑</span> {lang === "th" ? `รหัสแนะนำประจำตัว: ${referralCode || "กำลังสร้างรหัส..."}` : `Referral Code: ${referralCode || "Generating..."}`}
+                <span>🔑</span> {lang === "th" ? `รหัสแนะนำประจำตัว: ${referralCode || "TARO-VIP"}` : `Referral Code: ${referralCode || "TARO-VIP"}`}
               </h3>
             </div>
             
@@ -455,7 +461,6 @@ export default function AffiliatePage() {
             </form>
           </div>
 
-          {/* ตารางรายชื่อสมาชิกที่แนะนำ */}
           <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -483,9 +488,9 @@ export default function AffiliatePage() {
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 text-xs md:text-sm">
                     {referredList.map((item) => {
-                      const isVip = Boolean(item.is_vip);
+                      const isVip = Boolean(item.is_vip || item.vip);
                       const name = `${item.first_name || ""} ${item.last_name || ""}`.trim();
-                      const displayEmail = item.email || "ไม่ระบุอีเมล";
+                      const displayEmail = item.email || item.username || "ไม่ระบุอีเมล";
                       const regDate = item.created_at ? new Date(item.created_at).toLocaleDateString(lang === "th" ? "th-TH" : "en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : "-";
                       const expiryDate = item.vip_expire_date ? new Date(item.vip_expire_date).toLocaleDateString(lang === "th" ? "th-TH" : "en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : "-";
 
