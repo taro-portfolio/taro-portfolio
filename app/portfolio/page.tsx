@@ -26,22 +26,22 @@ export default function PortfolioPage() {
   const [cashCurrency, setCashCurrency] = useState<"THB" | "USD">("THB");
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [currency, setCurrency] = useState<"THB" | "USD">("THB");
-  const [exchangeRate, setExchangeRate] = useState(35);
+  const [exchangeRate, setExchangeRate] = useState(35); // ค่าเริ่มต้นสำรอง จะถูกทับด้วยค่า Real-time API
   const [realizedPnl, setRealizedPnl] = useState(0);
 
   const [lang, setLang] = useState<Language>("th");
   const t = translations[lang];
 
+  // 🌟 ดึงค่าอัตราแลกเปลี่ยนแบบ Real-time จาก API กลาง
   async function loadExchangeRate() {
     try {
       const res = await fetch("https://open.er-api.com/v6/latest/USD");
       const data = await res.json();
       if (data && data.rates && data.rates.THB) {
-        setExchangeRate(data.rates.THB);
+        setExchangeRate(Number(data.rates.THB));
       }
     } catch (err) {
-      console.error("Error loading exchange rate:", err);
-      setExchangeRate(35);
+      console.error("Error loading live exchange rate:", err);
     }
   }
 
@@ -123,7 +123,9 @@ export default function PortfolioPage() {
   }
 
   const currencySymbol = currency === "USD" ? "$" : "฿";
-  const cashMultiplier = currency === "USD" ? (cashCurrency === "THB" ? 1 / exchangeRate : 1) : (cashCurrency === "USD" ? exchangeRate : 1);
+  const cashMultiplier = currency === "USD" 
+    ? (cashCurrency === "THB" ? 1 / exchangeRate : 1) 
+    : (cashCurrency === "USD" ? exchangeRate : 1);
 
   if (loading) {
     return (
