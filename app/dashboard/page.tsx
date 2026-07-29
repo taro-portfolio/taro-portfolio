@@ -438,15 +438,24 @@ export default function Dashboard() {
 
       <main className="min-h-screen bg-slate-950 text-slate-100">
         
-        {/* 🌟 แถบประกาศข้อความวิ่ง (Marquee) เริ่มต้นตรงกลาง และวนลูปต่อกันเนียนกริบ */}
+        {/* 🌟 ป้ายประกาศสุดเด่น: พื้นหลังนีออนม่วง-ทองเข้ม, ขอบเรืองแสงสว่าง, ตัวหนังสือใหญ่สะใจ & วิ่งไวขึ้น */}
         <div className="mx-auto max-w-7xl px-4 pt-6">
-          <div style={{ width: '100%', background: 'linear-gradient(to right, #2e1065, #1e1b4b, #31103f)', border: '1px solid rgba(139, 92, 246, 0.4)', borderRadius: '12px', padding: '10px 16px', overflow: 'hidden', position: 'relative' }}>
+          <div style={{ 
+            width: '100%', 
+            background: 'linear-gradient(90deg, #3b0764, #581c87, #4c1d95, #3b0764)', 
+            border: '2px solid rgba(250, 204, 21, 0.7)', 
+            boxShadow: '0 0 20px rgba(168, 85, 247, 0.5), inset 0 0 15px rgba(250, 204, 21, 0.2)',
+            borderRadius: '16px', 
+            padding: '14px 20px', 
+            overflow: 'hidden', 
+            position: 'relative' 
+          }}>
             <div className="marquee-container">
               
-              {/* ชุดข้อความที่ 1 */}
+              {/* ชุดข้อความที่ 1 (ตัวหนังสือใหญ่, สีเหลืองทองนีออนสดใส, มีเงาเรืองแสง) */}
               <div className="marquee-content">
-                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#facc15', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '16px' }}>🔥</span> 
+                <span style={{ fontSize: '18px', fontWeight: '900', color: '#fef08a', textShadow: '0 0 10px rgba(234, 179, 8, 0.8), 0 2px 4px rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '22px' }}>🔥</span> 
                   {lang === "th" 
                     ? "ขอเชิญท่านสมาชิก แนะนำเพื่อนมาทดลองใช้งาน ระบบ TARO Portfolio เชิญเพื่อนใช้งาน 10 คน รับสิทธิ์เป็นสมาชิก VIP 1 เดือนทันที! 🚀" 
                     : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
@@ -455,8 +464,8 @@ export default function Dashboard() {
 
               {/* ชุดข้อความที่ 2 (สำเนาต่อท้ายเพื่อให้วนลูปแบบไร้รอยต่อ) */}
               <div className="marquee-content">
-                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#facc15', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '16px' }}>🔥</span> 
+                <span style={{ fontSize: '18px', fontWeight: '900', color: '#fef08a', textShadow: '0 0 10px rgba(234, 179, 8, 0.8), 0 2px 4px rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '22px' }}>🔥</span> 
                   {lang === "th" 
                     ? "ขอเชิญท่านสมาชิก แนะนำเพื่อนมาทดลองใช้งาน ระบบ TARO Portfolio เชิญเพื่อนใช้งาน 10 คน รับสิทธิ์เป็นสมาชิก VIP 1 เดือนทันที! 🚀" 
                     : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
@@ -902,7 +911,7 @@ export default function Dashboard() {
         }}
       />
 
-      {/* 🌟 CSS True Seamless Infinite Loop (เริ่มต้นตรงกลาง และวนต่อกันไร้รอยต่อ) */}
+      {/* 🌟 ปรับเพิ่มความเร็วขึ้น (20s) และจัดกึ่งกลางวนลูปสมบูรณ์ */}
       <style jsx global>{`
         @keyframes ledScroll {
           0% { transform: translateX(25%); }
@@ -911,12 +920,12 @@ export default function Dashboard() {
         .marquee-container {
           display: flex;
           width: max-content;
-          animation: ledScroll 35s linear infinite;
+          animation: ledScroll 20s linear infinite;
         }
         .marquee-content {
           display: flex;
           align-items: center;
-          margin-right: 80px;
+          margin-right: 100px;
           white-space: nowrap;
         }
       `}</style>
