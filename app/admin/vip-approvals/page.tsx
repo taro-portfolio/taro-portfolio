@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function AdminVipApprovalsPage() {
   const router = useRouter();
-  const [pendingPayments, setPendingPayments] = useState<any[]>([]);
+  const [pendingItems, setPendingItems] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,20 +35,61 @@ export default function AdminVipApprovalsPage() {
         return;
       }
 
-      // 1. ดึงรายการรออนุมัติจากตาราง vip_payments (พร้อม Join ข้อมูลโปรไฟล์ผู้ใช้)
-      const { data: pending, error: pendingError } = await supabase
+      let combinedPending: any[] = [];
+
+      // 1. ดึงจากตาราง vip_payments (ระบบใหม่)
+      const { data: paymentsData } = await supabase
         .from("vip_payments")
         .select("*, profiles(first_name, last_name, email)")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+        .eq("status", "pending");
 
-      if (pendingError) {
-        console.error("Error fetching pending payments:", pendingError);
-      } else if (pending) {
-        setPendingPayments(pending);
+      if (paymentsData) {
+        paymentsData.forEach((item) => {
+          combinedPending.push({
+            id: item.id, // ใช้ ID ของ payment
+            userId: item.user_id,
+            source: "payment_table",
+            firstName: item.profiles?.first_name || "-",
+            lastName: item.profiles?.last_name || "",
+            email: item.profiles?.email || item.user_id,
+            package: item.package || "99",
+            amount: item.amount || 99,
+            slipUrl: item.slip_url,
+            createdAt: item.created_at,
+          });
+        });
       }
 
-      // 2. ดึงรายชื่อสมาชิกทั้งหมด
+      // 2. ดึงจากตาราง profiles ที่ vip_status = 'pending' (ระบบเก่า หรือกรณีกดส่งแบบเดิม)
+      const { data: profilesPendingData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("vip_status", "pending");
+
+      if (profilesPendingData) {
+        profilesPendingData.forEach((userItem) => {
+          // ป้องกันไม่ให้ซ้ำกับรายการจากตาราง payment ถ้ามี slip_url
+          const exists = combinedPending.some((p) => p.userId === userItem.id);
+          if (!exists && userItem.slip_url) {
+            combinedPending.push({
+              id: userItem.id, // ใช้ ID ของ user
+              userId: userItem.id,
+              source: "profile_table",
+              firstName: userItem.first_name || "-",
+              lastName: userItem.last_name || "",
+              email: userItem.email || userItem.id,
+              package: userItem.vip_plan || "99",
+              amount: userItem.vip_plan === "899" ? 899 : userItem.vip_plan === "499" ? 499 : 99,
+              slipUrl: userItem.slip_url,
+              createdAt: userItem.created_at || new Date().toISOString(),
+            });
+          }
+        });
+      }
+
+      setPendingItems(combinedPending);
+
+      // 3. ดึงรายชื่อสมาชิกทั้งหมด
       const { data: everyone } = await supabase
         .from("profiles")
         .select("*")
@@ -63,7 +104,7 @@ export default function AdminVipApprovalsPage() {
         setReferredInputs(initialInputs);
       }
 
-      // 3. ดึงข้อมูลคำขอถอนเงิน
+      // 4. ดึงข้อมูลคำขอถอนเงิน
       const { data: withdraws } = await supabase
         .from("withdraws")
         .select("*, profiles(first_name, last_name, email)")
@@ -88,26 +129,27 @@ export default function AdminVipApprovalsPage() {
     router.replace("/admin/login");
   }
 
-  async function handleApprove(paymentId: string, userId: string, packageType: string) {
+  async function handleApprove(item: any) {
     const now = new Date();
     let expireDate = new Date();
+    const plan = String(item.package);
 
-    if (packageType === "99" || packageType.includes("99")) {
+    if (plan.includes("9") && !plan.includes("499") && !plan.includes("899")) {
       expireDate.setDate(now.getDate() + 30);
-    } else if (packageType === "499" || packageType.includes("499")) {
+    } else if (plan.includes("499")) {
       expireDate.setDate(now.getDate() + 180);
-    } else if (packageType === "899" || packageType.includes("899")) {
+    } else if (plan.includes("899")) {
       expireDate.setFullYear(now.getFullYear() + 1);
     } else {
-      expireDate.setDate(now.getDate() + 30); // ค่าสำรอง
+      expireDate.setDate(now.getDate() + 30);
     }
 
     try {
-      // 1. ตรวจสอบหรือสร้างรหัสแนะนำ (Referral Code)
+      // ตรวจสอบหรือสร้างรหัสแนะนำ
       const { data: profileCheck } = await supabase
         .from("profiles")
         .select("referral_code")
-        .eq("id", userId)
+        .eq("id", item.userId)
         .single();
 
       let newReferralCode = profileCheck?.referral_code;
@@ -131,7 +173,7 @@ export default function AdminVipApprovalsPage() {
         newReferralCode = `AF2026${paddedNum}`;
       }
 
-      // 2. อัปเดตสถานะ VIP ในตาราง profiles
+      // อัปเดตตาราง profiles ให้เป็น VIP Active
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
@@ -140,18 +182,19 @@ export default function AdminVipApprovalsPage() {
           vip_start_date: now.toISOString(),
           vip_expire_date: expireDate.toISOString(),
           referral_code: newReferralCode,
+          slip_url: null, //เคลียร์สลิปออก
         })
-        .eq("id", userId);
+        .eq("id", item.userId);
 
       if (profileError) throw profileError;
 
-      // 3. อัปเดตสถานะการชำระเงินในตาราง vip_payments เป็น approved
-      const { error: paymentError } = await supabase
-        .from("vip_payments")
-        .update({ status: "approved" })
-        .eq("id", paymentId);
-
-      if (paymentError) throw paymentError;
+      // ถ้ามาจากตาราง vip_payments ให้อัปเดตสถานะเป็น approved ด้วย
+      if (item.source === "payment_table") {
+        await supabase
+          .from("vip_payments")
+          .update({ status: "approved" })
+          .eq("id", item.id);
+      }
 
       alert(`✅ อนุมัติ VIP สำเร็จ! สร้างรหัสแนะนำ ${newReferralCode} ให้สมาชิกเรียบร้อยแล้ว`);
       loadAdminData();
@@ -160,17 +203,28 @@ export default function AdminVipApprovalsPage() {
     }
   }
 
-  async function handleReject(paymentId: string) {
-    const { error } = await supabase
-      .from("vip_payments")
-      .update({ status: "rejected" })
-      .eq("id", paymentId);
+  async function handleReject(item: any) {
+    try {
+      if (item.source === "payment_table") {
+        await supabase
+          .from("vip_payments")
+          .update({ status: "rejected" })
+          .eq("id", item.id);
+      }
 
-    if (error) {
-      alert("เกิดข้อผิดพลาด: " + error.message);
-    } else {
+      await supabase
+        .from("profiles")
+        .update({
+          vip_status: "none",
+          vip_plan: null,
+          slip_url: null,
+        })
+        .eq("id", item.userId);
+
       alert("❌ ปฏิเสธสลิปเรียบร้อยแล้ว");
       loadAdminData();
+    } catch (error: any) {
+      alert("เกิดข้อผิดพลาด: " + error.message);
     }
   }
 
@@ -252,7 +306,7 @@ export default function AdminVipApprovalsPage() {
                 : "bg-slate-900 text-slate-400 hover:bg-slate-800"
             }`}
           >
-            ⏳ รายการรออนุมัติสลิป ({pendingPayments.length})
+            ⏳ รายการรออนุมัติสลิป ({pendingItems.length})
           </button>
           <button
             onClick={() => setActiveTab("all")}
@@ -279,20 +333,20 @@ export default function AdminVipApprovalsPage() {
         {/* แท็บรออนุมัติสลิป */}
         {activeTab === "pending" && (
           <div>
-            {pendingPayments.length === 0 ? (
+            {pendingItems.length === 0 ? (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400">
                 ไม่มีรายการรออนุมัติในขณะนี้ 🎉
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {pendingPayments.map((item) => (
+                {pendingItems.map((item) => (
                   <div key={item.id} className="rounded-2xl border border-slate-800 bg-[#0c101d] p-6 shadow-xl space-y-4">
                     <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                       <div>
                         <div className="text-sm font-bold text-white">
-                          {item.profiles?.first_name || "-"} {item.profiles?.last_name || ""}
+                          {item.firstName} {item.lastName}
                         </div>
-                        <div className="text-xs text-slate-400">{item.profiles?.email || item.user_id}</div>
+                        <div className="text-xs text-slate-400">{item.email}</div>
                       </div>
                       <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
                         ยอดชำระ: ฿{item.amount} ({item.package})
@@ -301,9 +355,9 @@ export default function AdminVipApprovalsPage() {
 
                     <div>
                       <div className="text-xs font-bold text-slate-300 mb-2">หลักฐานการโอนเงิน (สลิป):</div>
-                      {item.slip_url ? (
-                        <a href={item.slip_url} target="_blank" rel="noopener noreferrer">
-                          <img src={item.slip_url} alt="Slip" className="h-48 w-full object-cover rounded-xl border border-slate-700 hover:opacity-90 transition" />
+                      {item.slipUrl ? (
+                        <a href={item.slipUrl} target="_blank" rel="noopener noreferrer">
+                          <img src={item.slipUrl} alt="Slip" className="h-48 w-full object-cover rounded-xl border border-slate-700 hover:opacity-90 transition" />
                         </a>
                       ) : (
                         <div className="text-xs text-red-400">ไม่พบรูปสลิป</div>
@@ -312,13 +366,13 @@ export default function AdminVipApprovalsPage() {
 
                     <div className="flex gap-3 pt-2">
                       <button
-                        onClick={() => handleApprove(item.id, item.user_id, item.package)}
+                        onClick={() => handleApprove(item)}
                         className="flex-1 rounded-xl bg-green-600 hover:bg-green-500 py-2.5 text-xs font-bold text-white transition cursor-pointer shadow-lg"
                       >
                         ✅ อนุมัติ & สร้างรหัสแนะนำ
                       </button>
                       <button
-                        onClick={() => handleReject(item.id)}
+                        onClick={() => handleReject(item)}
                         className="rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 px-4 py-2.5 text-xs font-bold text-red-400 transition cursor-pointer"
                       >
                         ❌ ปฏิเสธ
