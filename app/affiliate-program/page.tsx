@@ -18,15 +18,12 @@ export default function AffiliatePage() {
   const [referralLink, setReferralLink] = useState("");
   const [copied, setCopied] = useState(false);
 
-  // สถิติต่างๆ
   const [totalClicks, setTotalClicks] = useState(0);
   const [registeredReferrals, setRegisteredReferrals] = useState(0);
   const [vipReferrals, setVipReferrals] = useState(0);
 
-  // รายชื่อสมาชิกที่แนะนำมา
   const [referredList, setReferredList] = useState<any[]>([]);
 
-  // ข้อมูลสำหรับฟอร์มถอนเงิน
   const [bankName, setBankName] = useState("กสิกรไทย (KBANK)");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
@@ -49,7 +46,7 @@ export default function AffiliatePage() {
 
     const startOfMonthIso = new Date(currentYear, currentMonth, 1).toISOString();
     const { data: pastWithdrawals } = await supabase
-      .from("withdrawals")
+      .from("withdraws")
       .select("id, created_at")
       .eq("user_id", userId)
       .gte("created_at", startOfMonthIso);
@@ -121,63 +118,53 @@ export default function AffiliatePage() {
       setReferralLink(`${baseUrl}/register?ref=${user.id}`);
     }
 
-    // 🌟 ดึงรายชื่อสมาชิกที่ถูกแนะนำ โดยดึงคนที่ referred_by ตรงกับรหัส หรือ user.id
+    // 🌟 ดึงข้อมูลสมาชิกที่ใช้รหัสแนะนำตรงกัน (ทั้งแบบใช้ referral_code และ user.id)
     try {
-      let referredUsers: any[] = [];
-
+      let queryStr = "";
       if (code) {
-        const { data: dataByCode } = await supabase
-          .from("profiles")
-          .select("id, email, first_name, last_name, is_vip, vip_expire_date, created_at, referred_by")
-          .eq("referred_by", code)
-          .neq("id", user.id);
-        
-        if (dataByCode) referredUsers = [...referredUsers, ...dataByCode];
+        queryStr = `referred_by.eq.${code},referred_by.eq.${user.id}`;
+      } else {
+        queryStr = `referred_by.eq.${user.id}`;
       }
 
-      const { data: dataById } = await supabase
+      const { data: referredUsers, error: refError } = await supabase
         .from("profiles")
         .select("id, email, first_name, last_name, is_vip, vip_expire_date, created_at, referred_by")
-        .eq("referred_by", user.id)
-        .neq("id", user.id);
+        .or(queryStr)
+        .order("created_at", { ascending: false });
 
-      if (dataById) {
-        // รวมรายการและตัดตัวที่ซ้ำออก
-        const combined = [...referredUsers, ...dataById];
-        const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-        referredUsers = unique;
+      if (refError) {
+        console.error("Error fetching referred users:", refError);
       }
 
-      // เรียงลำดับตามวันที่สมัครล่าสุด
-      referredUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      if (referredUsers) {
+        setReferredList(referredUsers);
+        setRegisteredReferrals(referredUsers.length);
 
-      setReferredList(referredUsers);
-      setRegisteredReferrals(referredUsers.length);
-
-      const vipCount = referredUsers.filter((u) => Boolean(u.is_vip)).length;
-      setVipReferrals(vipCount);
-
+        const vipCount = referredUsers.filter((u) => Boolean(u.is_vip)).length;
+        setVipReferrals(vipCount);
+      }
     } catch (err) {
       console.error("Error fetching referrals:", err);
     }
 
     // ดึงจำนวนคลิกเข้าชม
     try {
-      let clickCount = 0;
-      if (code) {
-        const { count: c1 } = await supabase
-          .from("affiliate_clicks")
-          .select("*", { count: "exact", head: true })
-          .eq("referral_code", code);
-        if (c1 !== null) clickCount += c1;
-      }
-      const { count: c2 } = await supabase
+      let clickQuery = supabase
         .from("affiliate_clicks")
-        .select("*", { count: "exact", head: true })
-        .eq("referrer_id", user.id);
-      
-      if (c2 !== null && c2 > clickCount) clickCount = c2;
-      setTotalClicks(clickCount);
+        .select("*", { count: "exact", head: true });
+
+      if (code) {
+        clickQuery = clickQuery.or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
+      } else {
+        clickQuery = clickQuery.eq("referrer_id", user.id);
+      }
+
+      const { count: clicksCount } = await clickQuery;
+
+      if (clicksCount !== null) {
+        setTotalClicks(clicksCount);
+      }
     } catch (err) {
       console.error("Error fetching click count:", err);
     }
@@ -258,7 +245,7 @@ export default function AffiliatePage() {
       return;
     }
 
-    const { error } = await supabase.from("withdrawals").insert({
+    const { error } = await supabase.from("withdraws").insert({
       user_id: user.id,
       amount: amountNum,
       bank_name: bankName,
