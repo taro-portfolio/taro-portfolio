@@ -23,7 +23,6 @@ export default function AdminVipApprovalsPage() {
         return;
       }
 
-      // ดึงข้อมูลผ่าน API หลังบ้าน หรือดึงตรงโดยบังคับใช้สิทธิ์
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -36,7 +35,6 @@ export default function AdminVipApprovalsPage() {
         return;
       }
 
-      // ดึงรายชื่อสมาชิกทั้งหมด (หากติด RLS ให้เช็คว่าเปิด Policy ให้แอดมินอ่านได้หรือยัง)
       const { data: everyone, error: fetchError } = await supabase
         .from("profiles")
         .select("*")
@@ -54,14 +52,12 @@ export default function AdminVipApprovalsPage() {
         });
         setReferredInputs(initialInputs);
 
-        // กรองหาคนที่ส่งสลิปมา (มี slip_url หรือ vip_status เป็น pending)
         const pendingList = everyone.filter(
           (u) => (u.slip_url && u.slip_url.trim() !== "") || u.vip_status === "pending"
         );
         setPendingUsers(pendingList);
       }
 
-      // ดึงข้อมูลคำขอถอนเงิน
       const { data: withdraws } = await supabase
         .from("withdraws")
         .select("*, profiles(first_name, last_name, email)")
@@ -102,9 +98,10 @@ export default function AdminVipApprovalsPage() {
     }
 
     try {
+      // 1. ตรวจสอบหรือสร้างรหัสแนะนำ (Referral Code) ให้ผู้ใช้ที่กำลังอนุมัติ
       const { data: profileCheck } = await supabase
         .from("profiles")
-        .select("referral_code")
+        .select("referral_code, referred_by")
         .eq("id", userId)
         .single();
 
@@ -129,6 +126,7 @@ export default function AdminVipApprovalsPage() {
         newReferralCode = `AF2026${paddedNum}`;
       }
 
+      // 2. อัปเดตสถานะผู้ใช้เป็น VIP active
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -143,7 +141,32 @@ export default function AdminVipApprovalsPage() {
 
       if (error) throw error;
 
-      alert(`✅ อนุมัติ VIP สำเร็จ! สร้างรหัสแนะนำ ${newReferralCode} ให้สมาชิกเรียบร้อยแล้ว`);
+      // 3. ระบบคำนวณและจ่ายคอมมิชชัน 8% ให้ผู้แนะนำอัตโนมัติ (ถ้ามีคนแนะนำ)
+      if (profileCheck && profileCheck.referred_by) {
+        const refCode = profileCheck.referred_by.trim();
+        
+        // ค้นหาข้อมูลผู้แนะนำจาก referral_code
+        const { data: referrer } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("referral_code", refCode)
+          .single();
+
+        if (referrer) {
+          const planPrice = Number(selectedPlan) === 899 ? 899 : Number(selectedPlan) === 499 ? 499 : 99;
+          const commissionAmount = planPrice * 0.08; // คำนวณ 8%
+
+          // บันทึกลงตาราง commissions
+          await supabase.from("commissions").insert({
+            user_id: referrer.id,
+            amount: commissionAmount,
+            referred_id: userId,
+            status: "approved"
+          });
+        }
+      }
+
+      alert(`✅ อนุมัติ VIP สำเร็จ! สร้างรหัสแนะนำ ${newReferralCode} และจ่ายคอมมิชชันให้ผู้แนะนำเรียบร้อยแล้ว`);
       loadAdminData();
     } catch (error: any) {
       alert("เกิดข้อผิดพลาด: " + error.message);
@@ -236,7 +259,6 @@ export default function AdminVipApprovalsPage() {
           </button>
         </div>
 
-        {/* เมนูแท็บ */}
         <div className="flex gap-4 mb-6 border-b border-slate-800 pb-4 overflow-x-auto">
           <button
             onClick={() => setActiveTab("pending")}
@@ -270,12 +292,11 @@ export default function AdminVipApprovalsPage() {
           </button>
         </div>
 
-        {/* แท็บรออนุมัติสลิป */}
         {activeTab === "pending" && (
           <div>
             {pendingUsers.length === 0 ? (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400">
-                ไม่มีรายการรออนุมัติในขณะนี้ 🎉 (หากมีข้อมูลในตาราง profiles แต่ไม่แสดงที่นี่ ให้ไปปิด RLS ใน Supabase สำหรับตาราง profiles)
+                ไม่มีรายการรออนุมัติในขณะนี้ 🎉
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -323,7 +344,6 @@ export default function AdminVipApprovalsPage() {
           </div>
         )}
 
-        {/* แท็บสมาชิกทั้งหมด */}
         {activeTab === "all" && (
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
@@ -406,7 +426,6 @@ export default function AdminVipApprovalsPage() {
           </div>
         )}
 
-        {/* แท็บคำขอถอนเงิน */}
         {activeTab === "withdraw" && (
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
