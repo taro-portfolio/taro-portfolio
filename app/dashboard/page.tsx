@@ -304,7 +304,6 @@ export default function Dashboard() {
 
   const rate = exchangeRate || 35;
 
-  // 🌟 คำนวณยอดเงินสดและต้นทุนหุ้น โดยแปลงสกุลเงิน USD เป็น THB อัตโนมัติเมื่อหักลบกับเงินบาท
   let totalSpentTHB = 0;
   let totalReceivedTHB = 0;
 
@@ -316,9 +315,9 @@ export default function Dashboard() {
     const price = Number(item.buy_price || 0);
     const fee = Number(item.fee || 0);
     const isSell = item.type === "SELL";
-    const isUS = item.market === "US"; // หุ้น US เป็น USD ต้องแปลงเป็น THB ก่อนหักเงินสดบาท
+    const isUS = item.market === "US"; 
 
-    const multiplier = isUS ? rate : 1; // แปลง USD เป็น THB ตามเรตเรียลไทม์
+    const multiplier = isUS ? rate : 1; 
 
     if (isSell) {
       totalReceivedTHB += ((price * qty) - fee) * multiplier;
@@ -350,17 +349,15 @@ export default function Dashboard() {
     const avgBuyPrice = stock.quantity > 0 ? stock.totalCost / stock.quantity : 0;
     return {
       ...stock,
-      buy_price: avgBuyPrice, // เก็บเป็น THB สำหรับคำนวณหักลบเงินสด
+      buy_price: avgBuyPrice, 
     };
   });
 
-  // สมมติเงินสดตั้งต้นเป็น THB (50,000 บาท)
   const initialCashTHB = cashCurrency === "USD" ? (cash * rate) : cash;
   const netCashTHB = initialCashTHB - totalSpentTHB + totalReceivedTHB;
 
   const displayInUSD = currency === "USD";
 
-  // แปลงภาพรวมทั้งหมดตามปุ่มที่เลือกแสดงผลด้านบน (THB หรือ USD)
   const mainCash = displayInUSD ? (netCashTHB / rate) : netCashTHB;
   const altCash = displayInUSD ? netCashTHB : (netCashTHB / rate);
 
@@ -377,7 +374,7 @@ export default function Dashboard() {
     currentValueTHB += stockCurPriceTHB * stock.quantity;
   });
 
-  const totalPortfolioValue = currentValueTHB + mainCash; // คิดเป็นสกุลที่แสดงผล
+  const totalPortfolioValue = currentValueTHB + mainCash; 
   const profitLossTHB = currentValueTHB - totalStockCostTHB;
 
   const currentValue = displayInUSD ? (currentValueTHB / rate) : currentValueTHB;
@@ -440,6 +437,25 @@ export default function Dashboard() {
       <Navbar lang={lang} setLang={setLang} />
 
       <main className="min-h-screen bg-slate-950 text-slate-100">
+        
+        {/* 🌟 ป้ายไฟ LED วิ่งประกาศ (Marquee) ใต้แถบเมนู */}
+        <div className="w-full bg-gradient-to-r from-amber-950 via-purple-950 to-indigo-950 border-y border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.25)] py-2.5 overflow-hidden">
+          <div className="whitespace-nowrap animate-marquee flex items-center">
+            <span className="mx-6 text-sm md:text-base font-extrabold text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)] tracking-wide flex items-center gap-2">
+              <span className="text-xl">🔥</span> 
+              {lang === "th" 
+                ? "ขอเชิญท่านสมาชิก แนะนำเพื่อนมาทดลองใช้งาน ระบบ TARO Portfolio เชิญเพื่อนใช้งาน 10 คน รับสิทธิ์เป็นสมาชิก VIP 1 เดือนทันที! 🚀" 
+                : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
+            </span>
+            <span className="mx-6 text-sm md:text-base font-extrabold text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] tracking-wide flex items-center gap-2">
+              <span className="text-xl">⭐</span> 
+              {lang === "th" 
+                ? "ยิ่งชวนมาก ยิ่งได้สิทธิ์ VIP ยาวนานขึ้น มาร่วมเป็นส่วนหนึ่งของครอบครัว TARO กันเถอะ!" 
+                : "✨ Share the smart way to track investments with your network today!"}
+            </span>
+          </div>
+        </div>
+
         <div className="mx-auto max-w-7xl px-4 py-8 md:p-10">
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
@@ -874,6 +890,21 @@ export default function Dashboard() {
           if (user) loadCash(user.id);
         }}
       />
+
+      {/* 🌟 CSS Animation สำหรับตัวหนังสือวิ่ง (Marquee LED) */}
+      <style jsx global>{`
+        @keyframes marquee {
+          0% { transform: translateX(100%); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          display: inline-flex;
+          animation: marquee 22s linear infinite;
+        }
+        .animate-marquee:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
     </>
   );
 }
