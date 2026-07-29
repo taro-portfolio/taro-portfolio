@@ -201,7 +201,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "วิเคราะห์หุ้นเชิงลึกVIP" : "VIP Deep Analysis"}
             </a>
 
-            {/* สิทธิประโยชน์สมาชิก VIP */}
+            {/* สิทธิประโยชน์สมาชิก VIP (แก้ไขให้ชี้ไปที่ /vip/dashboard ตามโฟลเดอร์จริง) */}
             <a 
               href="/vip/dashboard" 
               onClick={(e) => handleVipProtectedClick(e, "/vip/dashboard")}
