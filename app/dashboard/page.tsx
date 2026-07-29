@@ -438,7 +438,7 @@ export default function Dashboard() {
 
       <main className="min-h-screen bg-slate-950 text-slate-100">
         
-        {/* 🌟 แถบประกาศข้อความวิ่ง (Marquee) ทำงานด้วย Style ภายในตัว ไม่ต้องพึ่งไฟล์ CSS ภายนอก */}
+        {/* 🌟 แถบประกาศข้อความวิ่ง (Marquee) เริ่มต้นตรงกลาง และวนลูปต่อกันเนียนกริบ */}
         <div className="mx-auto max-w-7xl px-4 pt-6">
           <div style={{ width: '100%', background: 'linear-gradient(to right, #2e1065, #1e1b4b, #31103f)', border: '1px solid rgba(139, 92, 246, 0.4)', borderRadius: '12px', padding: '10px 16px', overflow: 'hidden', position: 'relative' }}>
             <div className="marquee-container">
@@ -902,21 +902,21 @@ export default function Dashboard() {
         }}
       />
 
-      {/* 🌟 ฝัง Style Animation ไว้ในหน้านี้โดยตรง ไม่ต้องสร้างไฟล์ globals.css */}
+      {/* 🌟 CSS True Seamless Infinite Loop (เริ่มต้นตรงกลาง และวนต่อกันไร้รอยต่อ) */}
       <style jsx global>{`
         @keyframes ledScroll {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(-50%); }
+          0% { transform: translateX(25%); }
+          100% { transform: translateX(-25%); }
         }
         .marquee-container {
           display: flex;
           width: max-content;
-          animation: ledScroll 45s linear infinite;
+          animation: ledScroll 35s linear infinite;
         }
         .marquee-content {
           display: flex;
           align-items: center;
-          margin-right: 75px;
+          margin-right: 80px;
           white-space: nowrap;
         }
       `}</style>
