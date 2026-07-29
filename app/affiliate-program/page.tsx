@@ -3,518 +3,519 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import Navbar from "@/components/Navbar";
-import { translations, Language } from "@/lib/i18n";
 
-export default function AffiliatePage() {
+export default function AdminVipApprovalsPage() {
   const router = useRouter();
-
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [withdrawRequests, setWithdrawRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lang, setLang] = useState<Language>("th");
-  const t = translations[lang];
+  const [activeTab, setActiveTab] = useState<"pending" | "all" | "withdraw">("pending");
+  
+  const [referredInputs, setReferredInputs] = useState<{ [key: string]: string }>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
 
-  const [totalEarnings, setTotalEarnings] = useState(0);
-  const [referralCode, setReferralCode] = useState("");
-  const [referralLink, setReferralLink] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  const [totalClicks, setTotalClicks] = useState(0);
-  const [registeredReferrals, setRegisteredReferrals] = useState(0);
-  const [vipReferrals, setVipReferrals] = useState(0);
-
-  const [referredList, setReferredList] = useState<any[]>([]);
-
-  const [bankName, setBankName] = useState("กสิกรไทย (KBANK)");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [accountName, setAccountName] = useState("");
-  const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [remark, setRemark] = useState("");
-  const [withdrawing, setWithdrawing] = useState(false);
-
-  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-  const [withdrawalMessage, setWithdrawalMessage] = useState("");
-  const [hasWithdrawnThisMonth, setHasWithdrawnThisMonth] = useState(false);
-
-  const checkWithdrawalRules = async (userId: string, currentEarnings: number) => {
-    const today = new Date();
-    const currentDate = today.getDate();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
-    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const isDateAllowed = currentDate >= 25 && currentDate <= lastDayOfMonth;
-
-    const startOfMonthIso = new Date(currentYear, currentMonth, 1).toISOString();
-    const { data: pastWithdrawals } = await supabase
-      .from("withdraws")
-      .select("id, created_at")
-      .eq("user_id", userId)
-      .gte("created_at", startOfMonthIso);
-
-    const alreadyWithdrawn = pastWithdrawals && pastWithdrawals.length > 0;
-    setHasWithdrawnThisMonth(Boolean(alreadyWithdrawn));
-
-    if (alreadyWithdrawn) {
-      setIsWithdrawOpen(false);
-      setWithdrawalMessage(
-        lang === "th"
-          ? "🔒 คุณได้ทำรายการถอนเงินของเดือนนี้ไปแล้ว (จำกัดการถอน 1 ครั้งต่อเดือน)"
-          : "🔒 You have already withdrawn for this month (Limit: 1 time per month)."
-      );
-    } else if (currentEarnings < 300) {
-      setIsWithdrawOpen(false);
-      setWithdrawalMessage(
-        lang === "th"
-          ? "🔒 ยอดเงินสะสมไม่ถึง 300 บาท (ขั้นต่ำการถอน 300 บาท)"
-          : "🔒 Minimum withdrawal amount is 300 THB."
-      );
-    } else if (!isDateAllowed) {
-      setIsWithdrawOpen(false);
-      setWithdrawalMessage(
-        lang === "th"
-          ? "🔒 ระบบถอนเงินจะเปิดให้ใช้งานเฉพาะช่วงสิ้นเดือน (วันที่ 25 - สิ้นเดือน)"
-          : "🔒 Withdrawals are only available from the 25th to the end of the month."
-      );
-    } else {
-      setIsWithdrawOpen(true);
-      setWithdrawalMessage(
-        lang === "th"
-          ? "🟢 เปิดระบบถอนเงินรอบสิ้นเดือนแล้ว! (ขั้นต่ำ 300 บาท | จำกัด 1 ครั้ง/เดือน)"
-          : "🟢 Withdrawal open! (Min 300 THB | 1 time/month)"
-      );
-    }
-  };
-
-  const fetchAffiliateData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("first_name, last_name, is_vip, referral_code")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile || !profile.is_vip) {
-      router.replace("/vip");
-      return;
-    }
-
-    let calculatedEarnings = 0;
-
-    const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
-    setAccountName(fullName || user.email || "");
-    
-    const code = profile.referral_code || "";
-    setReferralCode(code);
-
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    if (code) {
-      setReferralLink(`${baseUrl}/register?ref=${code}`);
-    } else {
-      setReferralLink(`${baseUrl}/register?ref=${user.id}`);
-    }
-
-    // 🌟 ดึงข้อมูลสมาชิกที่ใช้รหัสแนะนำตรงกัน (ทั้งแบบใช้ referral_code และ user.id)
+  const loadAdminData = useCallback(async () => {
     try {
-      let queryStr = "";
-      if (code) {
-        queryStr = `referred_by.eq.${code},referred_by.eq.${user.id}`;
-      } else {
-        queryStr = `referred_by.eq.${user.id}`;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/admin/login");
+        return;
       }
 
-      const { data: referredUsers, error: refError } = await supabase
+      const { data: profile } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, is_vip, vip_expire_date, created_at, referred_by")
-        .or(queryStr)
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "admin") {
+        alert("คุณไม่มีสิทธิ์เข้าถึงหน้าผู้ดูแลระบบ");
+        router.replace("/admin/login");
+        return;
+      }
+
+      const { data: everyone, error: fetchError } = await supabase
+        .from("profiles")
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (refError) {
-        console.error("Error fetching referred users:", refError);
+      if (fetchError) {
+        console.error("Fetch Error:", fetchError);
       }
 
-      if (referredUsers) {
-        setReferredList(referredUsers);
-        setRegisteredReferrals(referredUsers.length);
+      if (everyone) {
+        setAllUsers(everyone);
+        const initialInputs: { [key: string]: string } = {};
+        everyone.forEach((u) => {
+          initialInputs[u.id] = u.referred_by || "";
+        });
+        setReferredInputs(initialInputs);
 
-        const vipCount = referredUsers.filter((u) => Boolean(u.is_vip)).length;
-        setVipReferrals(vipCount);
+        const pendingList = everyone.filter(
+          (u) => (u.slip_url && u.slip_url.trim() !== "") || u.vip_status === "pending"
+        );
+        setPendingUsers(pendingList);
       }
-    } catch (err) {
-      console.error("Error fetching referrals:", err);
+
+      const { data: withdraws } = await supabase
+        .from("withdraws")
+        .select("*, profiles(first_name, last_name, email)")
+        .order("created_at", { ascending: false });
+
+      if (withdraws) setWithdrawRequests(withdraws);
+
+    } catch (err: any) {
+      console.error("Auth Error:", err);
+      router.replace("/admin/login");
+    } finally {
+      setLoading(false);
     }
-
-    // ดึงจำนวนคลิกเข้าชม
-    try {
-      let clickQuery = supabase
-        .from("affiliate_clicks")
-        .select("*", { count: "exact", head: true });
-
-      if (code) {
-        clickQuery = clickQuery.or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
-      } else {
-        clickQuery = clickQuery.eq("referrer_id", user.id);
-      }
-
-      const { count: clicksCount } = await clickQuery;
-
-      if (clicksCount !== null) {
-        setTotalClicks(clicksCount);
-      }
-    } catch (err) {
-      console.error("Error fetching click count:", err);
-    }
-
-    // ดึงยอดรายได้สะสมจากตาราง commissions
-    try {
-      const { data: commData } = await supabase
-        .from("commissions")
-        .select("amount")
-        .eq("user_id", user.id);
-
-      if (commData && commData.length > 0) {
-        calculatedEarnings = commData.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-        setTotalEarnings(calculatedEarnings);
-      }
-    } catch (err) {
-      console.error("Error fetching total earnings:", err);
-    }
-
-    await checkWithdrawalRules(user.id, calculatedEarnings);
-    setLoading(false);
   }, [router]);
 
   useEffect(() => {
-    fetchAffiliateData();
+    loadAdminData();
+  }, [loadAdminData]);
 
-    const channel = supabase
-      .channel("realtime-affiliate-page")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
-        fetchAffiliateData();
+  async function handleAdminLogout() {
+    await supabase.auth.signOut();
+    router.replace("/admin/login");
+  }
+
+  // 🌟 ฟังก์ชันอนุมัติ VIP และจ่ายคอมมิชชันแบบสมบูรณ์
+  async function handleApprove(userId: string, plan: string) {
+    const now = new Date();
+    let expireDate = new Date();
+    const selectedPlan = plan || "899";
+
+    if (selectedPlan === "99") {
+      expireDate.setDate(now.getDate() + 30);
+    } else if (selectedPlan === "499") {
+      expireDate.setDate(now.getDate() + 180);
+    } else if (selectedPlan === "899") {
+      expireDate.setFullYear(now.getFullYear() + 1);
+    } else {
+      expireDate.setFullYear(now.getFullYear() + 1);
+    }
+
+    try {
+      // 1. ดึงข้อมูลโปรไฟล์ของคนที่กำลังจะอนุมัติ
+      const { data: targetUser } = await supabase
+        .from("profiles")
+        .select("referral_code, referred_by")
+        .eq("id", userId)
+        .single();
+
+      let newReferralCode = targetUser?.referral_code;
+
+      // ถ้ายังไม่มีรหัสแนะนำตัว ให้สร้างรหัสใหม่ให้อัตโนมัติ
+      if (!newReferralCode) {
+        const { data: lastUser } = await supabase
+          .from("profiles")
+          .select("referral_code")
+          .not("referral_code", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        let nextNumber = 1;
+        if (lastUser && lastUser.referral_code) {
+          const lastNumStr = lastUser.referral_code.replace("AF2026", "");
+          nextNumber = parseInt(lastNumStr, 10) + 1;
+        }
+
+        const paddedNum = String(nextNumber).padStart(7, "0");
+        newReferralCode = `AF2026${paddedNum}`;
+      }
+
+      // 2. อัปเดตสถานะผู้ใช้คนนี้ให้เป็น VIP
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          is_vip: true,
+          vip_status: "active",
+          vip_start_date: now.toISOString(),
+          vip_expire_date: expireDate.toISOString(),
+          referral_code: newReferralCode,
+          slip_url: null,
+        })
+        .eq("id", userId);
+
+      if (updateError) throw updateError;
+
+      // 3. 🌟 ระบบคำนวณและจ่ายคอมมิชชัน 8% ให้ผู้แนะนำ
+      const refCode = targetUser?.referred_by || referredInputs[userId];
+      
+      if (refCode && refCode.trim() !== "") {
+        const cleanRefCode = refCode.trim();
+
+        // ค้นหา ID ของผู้แนะนำจากรหัสแนะนำ (referral_code) หรือ id
+        let referrerId = null;
+        const { data: refByCode } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("referral_code", cleanRefCode)
+          .single();
+
+        if (refByCode) {
+          referrerId = refByCode.id;
+        } else {
+          const { data: refById } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", cleanRefCode)
+            .single();
+          if (refById) referrerId = refById.id;
+        }
+
+        if (referrerId && referrerId !== userId) {
+          let planPrice = 899;
+          if (String(selectedPlan) === "99") planPrice = 99;
+          if (String(selectedPlan) === "499") planPrice = 499;
+          if (String(selectedPlan) === "899") planPrice = 899;
+
+          const commissionAmount = planPrice * 0.08; // 8%
+
+          // บันทึกลงตาราง commissions เพื่อให้ยอดเงินเด้งทันที
+          await supabase.from("commissions").insert({
+            user_id: referrerId,
+            amount: commissionAmount,
+            referred_id: userId,
+            status: "approved"
+          });
+        }
+      }
+
+      alert(`✅ อนุมัติ VIP สำเร็จ! สร้างรหัสแนะนำ ${newReferralCode} และบันทึกคอมมิชชันเรียบร้อยแล้ว`);
+      loadAdminData();
+    } catch (error: any) {
+      alert("เกิดข้อผิดพลาด: " + error.message);
+    }
+  }
+
+  async function handleReject(userId: string) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        vip_status: "none",
+        vip_plan: null,
+        slip_url: null,
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "commissions" }, () => {
-        fetchAffiliateData();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchAffiliateData]);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleWithdraw = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!isWithdrawOpen) {
-      alert(lang === "th" ? "ไม่สามารถทำรายการถอนได้ในขณะนี้" : "Withdrawal is currently unavailable.");
-      return;
-    }
-
-    const amountNum = Number(withdrawAmount);
-
-    if (!withdrawAmount || amountNum < 300) {
-      alert(lang === "th" ? "⚠️ กำหนดขั้นต่ำการถอนเงิน 300 บาทขึ้นไปครับ" : "Minimum withdrawal amount is 300 THB.");
-      return;
-    }
-
-    if (amountNum > totalEarnings) {
-      alert(lang === "th" ? "ยอดเงินสะสมของคุณไม่เพียงพอสำหรับการถอน" : "Insufficient balance for withdrawal.");
-      return;
-    }
-
-    if (!accountNumber) {
-      alert(lang === "th" ? "กรุณากรอกเลขที่บัญชีธนาคาร" : "Please enter your bank account number.");
-      return;
-    }
-
-    setWithdrawing(true);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      setWithdrawing(false);
-      return;
-    }
-
-    const { error } = await supabase.from("withdraws").insert({
-      user_id: user.id,
-      amount: amountNum,
-      bank_name: bankName,
-      account_number: accountNumber,
-      account_name: accountName,
-      remark: remark,
-      status: "pending",
-      created_at: new Date().toISOString()
-    });
+      .eq("id", userId);
 
     if (error) {
-      console.error(error);
+      alert("เกิดข้อผิดพลาด: " + error.message);
+    } else {
+      alert("❌ ปฏิเสธสลิปเรียบร้อยแล้ว");
+      loadAdminData();
     }
+  }
 
-    setTimeout(() => {
-      alert(lang === "th" ? "🎉 ส่งคำขอถอนเงินเรียบร้อยแล้ว" : "Withdrawal request submitted!");
-      setWithdrawAmount("");
-      setAccountNumber("");
-      setRemark("");
-      setWithdrawing(false);
-      setIsWithdrawOpen(false);
-      setHasWithdrawnThisMonth(true);
-    }, 1000);
-  };
+  async function handleUpdateReferredBy(userId: string) {
+    const newRefCode = referredInputs[userId] || "";
+    const cleanCode = newRefCode.trim();
+    
+    setSavingId(userId);
+    
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ referred_by: cleanCode === "" ? null : cleanCode })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      alert("✅ อัปเดตผู้แนะนำสำเร็จ!");
+      
+      setAllUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === userId ? { ...user, referred_by: cleanCode === "" ? null : cleanCode } : user
+        )
+      );
+    } catch (error: any) {
+      alert("⚠️ บันทึกไม่สำเร็จ: " + error.message);
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function handleUpdateWithdrawStatus(withdrawId: string, newStatus: string) {
+    try {
+      const { error } = await supabase
+        .from("withdraws")
+        .update({ status: newStatus })
+        .eq("id", withdrawId);
+
+      if (error) throw error;
+
+      alert("✅ อัปเดตสถานะคำขอถอนเงินสำเร็จ!");
+      loadAdminData();
+    } catch (error: any) {
+      alert("เกิดข้อผิดพลาด: " + error.message);
+    }
+  }
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white text-sm">
         <div className="flex items-center gap-3">
-          <div className="h-6 w-6 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-          <h1 className="text-xl font-semibold text-slate-300">กำลังตรวจสอบสิทธิ์ VIP...</h1>
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-purple-500 border-t-transparent"></div>
+          กำลังตรวจสอบสิทธิ์แอดมิน...
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <>
-      <Navbar lang={lang} setLang={setLang} />
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 border-b border-slate-800 pb-6">
+          <h1 className="text-2xl font-extrabold text-white">🛡️ ระบบจัดการผู้ดูแลระบบและสมาชิก (Admin Panel)</h1>
+          <button
+            onClick={handleAdminLogout}
+            className="bg-red-600/25 hover:bg-red-600/40 border border-red-500/50 text-red-400 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer w-fit"
+          >
+            🚪 ออกจากระบบแอดมิน
+          </button>
+        </div>
 
-      <main className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4">
-        <div className="mx-auto max-w-5xl">
-          
-          <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-xl">
-            <div>
-              <span className="inline-block rounded-full bg-purple-500/10 px-4 py-1.5 text-xs font-bold text-purple-400 border border-purple-500/20 uppercase tracking-widest mb-2">
-                VIP AFFILIATE PROGRAM
-              </span>
-              <h1 className="text-3xl font-extrabold text-white">
-                {lang === "th" ? "ระบบสร้างรายได้แนะนำเพื่อน" : "Affiliate Program"}
-              </h1>
-              <p className="text-sm text-slate-400 mt-1">
-                {lang === "th" ? "แชร์ลิงก์แนะนำของคุณเพื่อรับคอมมิชชันค่าบริการ VIP ทันที" : "Share your referral link to earn VIP commissions."}
-              </p>
-            </div>
+        <div className="flex gap-4 mb-6 border-b border-slate-800 pb-4 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab("pending")}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              activeTab === "pending"
+                ? "bg-purple-600 text-white shadow-lg"
+                : "bg-slate-900 text-slate-400 hover:bg-slate-800"
+            }`}
+          >
+            ⏳ รายการรออนุมัติสลิป ({pendingUsers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("all")}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              activeTab === "all"
+                ? "bg-purple-600 text-white shadow-lg"
+                : "bg-slate-900 text-slate-400 hover:bg-slate-800"
+            }`}
+          >
+            👥 สมาชิกทั้งหมดในระบบ ({allUsers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("withdraw")}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              activeTab === "withdraw"
+                ? "bg-purple-600 text-white shadow-lg"
+                : "bg-slate-900 text-slate-400 hover:bg-slate-800"
+            }`}
+          >
+            💸 คำขอถอนเงิน ({withdrawRequests.length})
+          </button>
+        </div>
 
-            <div className="bg-purple-950/40 border border-purple-500/30 px-6 py-4 rounded-2xl text-center">
-              <p className="text-xs text-purple-300 uppercase tracking-wider font-semibold">
-                {lang === "th" ? "รายได้สะสมทั้งหมด" : "Total Earnings"}
-              </p>
-              <h2 className="text-3xl font-black text-white mt-1">฿{totalEarnings.toLocaleString()}</h2>
-            </div>
-          </div>
-
-          <div className="mb-8 rounded-2xl bg-gradient-to-r from-purple-900/30 via-indigo-900/20 to-slate-900 border border-purple-500/30 p-6 shadow-xl">
-            <h3 className="text-sm font-extrabold text-purple-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span>📊</span> {lang === "th" ? "อัตราผลตอบแทนค่าคอมมิชชัน Affiliate & เงื่อนไขการถอน" : "Commission Structure & Rules"}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-emerald-400 font-bold text-sm">✨ คอมมิชชันการสมัครและการต่ออายุ</span>
-                <p className="text-slate-400">
-                  {lang === "th" 
-                    ? "รับ 8% จากยอดสมัครครั้งแรก และ 4% จากทุกยอดการต่ออายุแพ็กเกจ VIP ของเพื่อน" 
-                    : "Earn 8% on first sign-up and 4% on VIP renewals."}
-                </p>
-              </div>
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-amber-500/30 space-y-1">
-                <span className="text-amber-400 font-bold text-sm">⚠️ เงื่อนไขการถอนเงิน</span>
-                <p className="text-slate-400">
-                  {lang === "th" 
-                    ? "ถอนขั้นต่ำ 300 บาทขึ้นไป เปิดให้ถอนเฉพาะช่วงสิ้นเดือน (วันที่ 25 - สิ้นเดือน) จำกัด 1 ครั้ง/เดือน" 
-                    : "Min withdrawal 300 THB. Available from 25th to end of month (1 time/month)."}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-8 rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                <span>🔑</span> {lang === "th" ? `รหัสแนะนำประจำตัว: ${referralCode || "กำลังสร้างรหัส..."}` : `Referral Code: ${referralCode || "Generating..."}`}
-              </h3>
-            </div>
-            
-            <div>
-              <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">
-                {lang === "th" ? "ลิงก์แนะนำเพื่อนของคุณ (Referral Link)" : "Your Referral Link"}
-              </label>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  readOnly
-                  value={referralLink}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-300 font-mono select-all focus:outline-none"
-                />
-                <button
-                  onClick={handleCopy}
-                  className="rounded-xl bg-purple-600 px-6 py-3 font-bold text-white hover:bg-purple-500 transition cursor-pointer text-sm whitespace-nowrap shadow-lg"
-                >
-                  {copied ? (lang === "th" ? "✅ คัดลอกแล้ว" : "✅ Copied") : (lang === "th" ? "📋 คัดลอกลิงก์" : "📋 Copy Link")}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg">
-              <p className="text-sm text-slate-400">{lang === "th" ? "จำนวนคลิกเข้าชม" : "Total Clicks"}</p>
-              <h2 className="text-3xl font-black text-white mt-2">{totalClicks.toLocaleString()}</h2>
-            </div>
-            <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg">
-              <p className="text-sm text-slate-400">{lang === "th" ? "สมาชิกที่สมัครทั้งหมด" : "Registered Referrals"}</p>
-              <h2 className="text-3xl font-black text-sky-400 mt-2">{registeredReferrals.toLocaleString()}</h2>
-            </div>
-            <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-lg">
-              <p className="text-sm text-slate-400">{lang === "th" ? "สมาชิก VIP ที่แนะนำสำเร็จ" : "VIP Referrals"}</p>
-              <h2 className="text-3xl font-black text-emerald-400 mt-2">{vipReferrals.toLocaleString()}</h2>
-            </div>
-          </div>
-
-          <div className="mb-10 rounded-3xl bg-slate-900 border border-slate-800 p-8 shadow-2xl">
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <span>💳</span> {lang === "th" ? "ระบบถอนเงินคอมมิชชัน" : "Withdrawal Request"}
-                </h3>
-              </div>
-
-              <div className={`px-4 py-2 rounded-xl text-xs font-bold border ${isWithdrawOpen ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
-                {withdrawalMessage}
-              </div>
-            </div>
-
-            <form onSubmit={handleWithdraw} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2">ธนาคาร</label>
-                  <select
-                    disabled={!isWithdrawOpen}
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none disabled:opacity-50"
-                  >
-                    <option value="กสิกรไทย (KBANK)">ธนาคารกสิกรไทย (KBANK)</option>
-                    <option value="ไทยพาณิชย์ (SCB)">ธนาคารไทยพาณิชย์ (SCB)</option>
-                    <option value="กรุงเทพ (BBL)">ธนาคารกรุงเทพ (BBL)</option>
-                    <option value="กรุงไทย (KTB)">ธนาคารกรุงไทย (KTB)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2">เลขที่บัญชีธนาคาร</label>
-                  <input
-                    type="text"
-                    disabled={!isWithdrawOpen}
-                    placeholder="เช่น 1234567890"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none font-mono disabled:opacity-50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2">ชื่อบัญชีธนาคาร</label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={accountName}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 text-sm text-purple-300 font-semibold cursor-not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-2">จำนวนเงินที่ต้องการถอน (ขั้นต่ำ 300 บาท)</label>
-                  <input
-                    type="number"
-                    min="300"
-                    disabled={!isWithdrawOpen}
-                    placeholder="300 ขึ้นไป"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-emerald-400 font-bold disabled:opacity-50"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={!isWithdrawOpen || withdrawing}
-                className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-8 py-3.5 font-extrabold text-white shadow-xl hover:from-emerald-500 hover:to-teal-500 transition cursor-pointer text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {withdrawing ? "กำลังส่งคำขอ..." : "💸 ยืนยันการถอนเงิน"}
-              </button>
-            </form>
-          </div>
-
-          {/* ตารางรายชื่อสมาชิกที่แนะนำ */}
-          <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <span>👥</span> {lang === "th" ? "รายชื่อสมาชิกที่แนะนำทั้งหมด" : "Referred Members List"}
-                <span className="ml-2 rounded-full bg-purple-500/10 px-3 py-0.5 text-xs font-bold text-purple-400 border border-purple-500/20">
-                  {referredList.length} คน
-                </span>
-              </h3>
-            </div>
-
-            {referredList.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-800 p-12 text-center text-slate-500 text-sm bg-slate-950/40">
-                {lang === "th" ? "ยังไม่มีสมาชิกที่ใช้รหัสแนะนำของคุณ" : "No referrals yet."}
+        {activeTab === "pending" && (
+          <div>
+            {pendingUsers.length === 0 ? (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-400">
+                ไม่มีรายการรออนุมัติในขณะนี้ 🎉
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/50">
-                <table className="min-w-[700px] w-full border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-slate-800 bg-slate-900/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="px-4 py-4">{lang === "th" ? "อีเมล / ชื่อสมาชิก" : "Member"}</th>
-                      <th className="px-4 py-4">{lang === "th" ? "วันที่สมัคร" : "Registration Date"}</th>
-                      <th className="px-4 py-4 text-center">{lang === "th" ? "สถานะ" : "Status"}</th>
-                      <th className="px-4 py-4 text-right">{lang === "th" ? "วันหมดอายุ VIP" : "VIP Expiry Date"}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-xs md:text-sm">
-                    {referredList.map((item) => {
-                      const isVip = Boolean(item.is_vip);
-                      const name = `${item.first_name || ""} ${item.last_name || ""}`.trim();
-                      const displayEmail = item.email || "ไม่ระบุอีเมล";
-                      const regDate = item.created_at ? new Date(item.created_at).toLocaleDateString(lang === "th" ? "th-TH" : "en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : "-";
-                      const expiryDate = item.vip_expire_date ? new Date(item.vip_expire_date).toLocaleDateString(lang === "th" ? "th-TH" : "en-US", { year: 'numeric', month: 'short', day: 'numeric' }) : "-";
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {pendingUsers.map((user) => (
+                  <div key={user.id} className="rounded-2xl border border-slate-800 bg-[#0c101d] p-6 shadow-xl space-y-4">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                      <div>
+                        <div className="text-sm font-bold text-white">{user.first_name || "-"} {user.last_name || ""}</div>
+                        <div className="text-xs text-slate-400">{user.email || user.id}</div>
+                      </div>
+                      <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
+                        แพ็กเกจ: {user.vip_plan === "99" ? "รายเดือน (99 ฿)" : user.vip_plan === "499" ? "6 เดือน (499 ฿)" : user.vip_plan === "899" ? "1 ปี (899 ฿)" : `${user.vip_plan || "899"} ฿`}
+                      </span>
+                    </div>
 
-                      return (
-                        <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-4 font-semibold text-white">
-                            <div>{displayEmail}</div>
-                            {name && <div className="text-[11px] text-slate-400 font-normal">{name}</div>}
-                          </td>
-                          <td className="px-4 py-4 text-slate-400 font-medium">{regDate}</td>
-                          <td className="px-4 py-4 text-center">
-                            <span className={`inline-block rounded-full px-3 py-1 text-xs font-extrabold ${isVip ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                              {isVip ? "VIP" : "สมาชิกทั่วไป"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-right font-mono font-bold text-slate-300">
-                            {isVip ? expiryDate : <span className="text-slate-500 font-normal">ฟรี</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                    <div>
+                      <div className="text-xs font-bold text-slate-300 mb-2">หลักฐานการโอนเงิน (สลิป):</div>
+                      {user.slip_url ? (
+                        <a href={user.slip_url} target="_blank" rel="noopener noreferrer">
+                          <img src={user.slip_url} alt="Slip" className="h-48 w-full object-cover rounded-xl border border-slate-700 hover:opacity-90 transition" />
+                        </a>
+                      ) : (
+                        <div className="text-xs text-red-400">ไม่พบรูปสลิป</div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => handleApprove(user.id, user.vip_plan || "899")}
+                        className="flex-1 rounded-xl bg-green-600 hover:bg-green-500 py-2.5 text-xs font-bold text-white transition cursor-pointer shadow-lg"
+                      >
+                        ✅ อนุมัติ & สร้างรหัสแนะนำ
+                      </button>
+                      <button
+                        onClick={() => handleReject(user.id)}
+                        className="rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 px-4 py-2.5 text-xs font-bold text-red-400 transition cursor-pointer"
+                      >
+                        ❌ ปฏิเสธ
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
+        )}
 
-        </div>
-      </main>
-    </>
+        {activeTab === "all" && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                  <tr>
+                    <th className="px-4 py-3">ชื่อ - นามสกุล</th>
+                    <th className="px-4 py-3">อีเมล</th>
+                    <th className="px-4 py-3">สิทธิ์ระบบ (Role)</th>
+                    <th className="px-4 py-3">สถานะ VIP</th>
+                    <th className="px-4 py-3">รหัสแนะนำตัว</th>
+                    <th className="px-4 py-3">ผู้แนะนำ (Referred By)</th>
+                    <th className="px-4 py-3">วันที่สมัคร</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {allUsers.map((u) => {
+                    const currentInputValue = referredInputs[u.id] !== undefined ? referredInputs[u.id] : (u.referred_by || "");
+                    const isChanged = currentInputValue !== (u.referred_by || "");
+
+                    return (
+                      <tr key={u.id} className="hover:bg-slate-800/40 transition">
+                        <td className="px-4 py-3 font-semibold text-white">
+                          {u.first_name || "-"} {u.last_name || ""}
+                        </td>
+                        <td className="px-4 py-3 text-slate-400">{u.email || "-"}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-slate-800 text-slate-300'}`}>
+                            {u.role || "user"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {u.is_vip ? (
+                            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                              ⭐ VIP Active
+                            </span>
+                          ) : (
+                            <span className="bg-slate-800 text-slate-400 px-2.5 py-1 rounded-full text-[10px]">
+                              Free
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-indigo-400 font-bold">
+                          {u.referral_code || "-"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={currentInputValue}
+                              placeholder="ไม่มีผู้แนะนำ"
+                              onChange={(e) => {
+                                setReferredInputs({
+                                  ...referredInputs,
+                                  [u.id]: e.target.value
+                                });
+                              }}
+                              className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-indigo-300 font-mono w-32 focus:outline-none focus:border-purple-500"
+                            />
+                            {isChanged && (
+                              <button
+                                onClick={() => handleUpdateReferredBy(u.id)}
+                                disabled={savingId === u.id}
+                                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold transition shadow-md whitespace-nowrap cursor-pointer"
+                              >
+                                {savingId === u.id ? "⏳..." : "💾 บันทึก"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">
+                          {u.created_at ? new Date(u.created_at).toLocaleDateString("th-TH") : "-"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "withdraw" && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                  <tr>
+                    <th className="px-4 py-3">ชื่อสมาชิก</th>
+                    <th className="px-4 py-3">อีเมล</th>
+                    <th className="px-4 py-3">จำนวนเงินที่ถอน</th>
+                    <th className="px-4 py-3">สถานะคำขอ</th>
+                    <th className="px-4 py-3">จัดการสถานะ</th>
+                    <th className="px-4 py-3">วันที่ทำรายการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {withdrawRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                        ยังไม่มีคำขอถอนเงินในขณะนี้ 💸
+                      </td>
+                    </tr>
+                  ) : (
+                    withdrawRequests.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-800/40 transition">
+                        <td className="px-4 py-3 font-semibold text-white">
+                          {item.profiles?.first_name || "-"} {item.profiles?.last_name || ""}
+                        </td>
+                        <td className="px-4 py-3 text-slate-400">{item.profiles?.email || "-"}</td>
+                        <td className="px-4 py-3 font-mono text-emerald-400 font-bold text-sm">
+                          ฿{Number(item.amount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.status === "pending" ? (
+                            <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                              ⏳ ตรวจสอบ
+                            </span>
+                          ) : item.status === "processing" ? (
+                            <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                              🔄 ตรวจสอบแล้วรอโอน
+                            </span>
+                          ) : (
+                            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                              ✅ โอนสำเร็จ
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={item.status}
+                            onChange={(e) => handleUpdateWithdrawStatus(item.id, e.target.value)}
+                            className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+                          >
+                            <option value="pending">⏳ ตรวจสอบ</option>
+                            <option value="processing">🔄 ตรวจสอบแล้วรอโอน</option>
+                            <option value="completed">✅ โอนสำเร็จ</option>
+                          </select>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500">
+                          {item.created_at ? new Date(item.created_at).toLocaleDateString("th-TH") : "-"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </main>
   );
 }
