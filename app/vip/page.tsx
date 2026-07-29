@@ -463,10 +463,14 @@ export default function VipPage() {
 
             </div>
 
+            {/* 🌟 2 ช่องการ์ดฟีเจอร์ VIP แบบคลิกใช้งานได้จริง (ลิงก์ไปหน้า /live-stock-news) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* ฟีเจอร์ที่ 1: แนวรับ-แนวต้าน & บิ๊กออเดอร์เรียลไทม์ */}
-              <div className="rounded-3xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 p-8 shadow-xl flex flex-col justify-between">
+              <Link 
+                href="/live-stock-news"
+                className="rounded-3xl bg-gradient-to-br from-purple-950/40 via-slate-900 to-slate-950 border border-purple-500/30 p-8 shadow-xl flex flex-col justify-between transition hover:border-purple-500 hover:scale-[1.01] cursor-pointer block"
+              >
                 <div>
                   <div className="text-3xl mb-4">📈</div>
                   <h3 className="text-xl font-bold text-white">
@@ -479,13 +483,16 @@ export default function VipPage() {
                   </p>
                 </div>
                 <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-purple-400">
-                  <span>⚡ Live Data Feed</span>
-                  <span className="bg-purple-500/20 px-3 py-1 rounded-full border border-purple-500/30">VIP Exclusive</span>
+                  <span>⚡ Live Data Feed (คลิกเพื่อใช้งาน)</span>
+                  <span className="bg-purple-500/20 px-3 py-1 rounded-full border border-purple-500/30">VIP Exclusive ↗</span>
                 </div>
-              </div>
+              </Link>
 
               {/* ฟีเจอร์ที่ 2: เส้น EMA & คำสั่งซื้อของกองทุน */}
-              <div className="rounded-3xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 border border-indigo-500/30 p-8 shadow-xl flex flex-col justify-between">
+              <Link 
+                href="/live-stock-news"
+                className="rounded-3xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 border border-indigo-500/30 p-8 shadow-xl flex flex-col justify-between transition hover:border-indigo-500 hover:scale-[1.01] cursor-pointer block"
+              >
                 <div>
                   <div className="text-3xl mb-4">🏛️</div>
                   <h3 className="text-xl font-bold text-white">
@@ -498,10 +505,10 @@ export default function VipPage() {
                   </p>
                 </div>
                 <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-400">
-                  <span>📊 Smart Money Tracker</span>
-                  <span className="bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/30">VIP Exclusive</span>
+                  <span>📊 Smart Money Tracker (คลิกเพื่อใช้งาน)</span>
+                  <span className="bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/30">VIP Exclusive ↗</span>
                 </div>
-              </div>
+              </Link>
 
             </div>
           </div>
