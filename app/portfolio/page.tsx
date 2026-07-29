@@ -122,8 +122,8 @@ export default function PortfolioPage() {
     }
   }
 
-  // 🌟 ตัวแปลงเรตเงินตามสกุลเงินที่เลือก (THB หรือ USD)
-  const currencyMultiplier = currency === "USD" ? 1 / exchangeRate : 1;
+  // 🌟 แก้ไขตัวคูณเรตเงินให้ถูกต้องสมบูรณ์ (ถ้าเลือก THB เป็น 1, ถ้าเลือก USD หารด้วย exchangeRate)
+  const currencyMultiplier = currency === "USD" ? (1 / (exchangeRate || 35)) : 1;
   const currencySymbol = currency === "USD" ? "$" : "฿";
 
   if (loading) {
@@ -144,7 +144,6 @@ export default function PortfolioPage() {
       <main className="min-h-screen bg-slate-950 text-slate-100">
         <div className="mx-auto max-w-7xl px-4 py-8 md:p-10 space-y-8">
           
-          {/* ส่วนหัวหน้าเว็บ */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
             <div>
               <span className="inline-block rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-400 border border-indigo-500/20 uppercase tracking-widest mb-2">
@@ -189,7 +188,6 @@ export default function PortfolioPage() {
             </div>
           </div>
 
-          {/* แผงควบคุมและปุ่มคำสั่ง */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60 shadow-lg">
             <div className="flex flex-wrap items-center gap-3">
               <button
@@ -230,7 +228,6 @@ export default function PortfolioPage() {
             </div>
           </div>
 
-          {/* ตารางแสดงรายการทั้งหมด */}
           <div className="rounded-3xl bg-slate-900/60 p-6 md:p-8 border border-slate-800/80 shadow-2xl backdrop-blur-md">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
