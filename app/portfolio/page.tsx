@@ -122,9 +122,8 @@ export default function PortfolioPage() {
     }
   }
 
-  // 🌟 แก้ไขตัวคูณเรตเงินให้ถูกต้องสมบูรณ์ (ถ้าเลือก THB เป็น 1, ถ้าเลือก USD หารด้วย exchangeRate)
-  const currencyMultiplier = currency === "USD" ? (1 / (exchangeRate || 35)) : 1;
   const currencySymbol = currency === "USD" ? "$" : "฿";
+  const cashMultiplier = currency === "USD" ? (cashCurrency === "THB" ? 1 / exchangeRate : 1) : (cashCurrency === "USD" ? exchangeRate : 1);
 
   if (loading) {
     return (
@@ -216,14 +215,14 @@ export default function PortfolioPage() {
                 onClick={() => setOpenCashModal(true)}
                 className="rounded-xl bg-slate-900 border border-slate-700/80 px-5 py-2.5 font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-2 text-sm cursor-pointer shadow-sm"
               >
-                <span>💵</span> แก้ไขเงินสด <span className="text-indigo-400">({currencySymbol}{(cash * currencyMultiplier).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                <span>💵</span> แก้ไขเงินสด <span className="text-indigo-400">({currencySymbol}{(cash * cashMultiplier).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
               </button>
             </div>
 
             <div className="rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2.5 text-xs md:text-sm font-semibold text-slate-300 flex items-center gap-2">
               <span className="text-slate-400">กำไร/ขาดทุนที่ขายแล้ว (Realized P/L):</span> 
               <span className={`font-bold ${realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {realizedPnl >= 0 ? "+" : ""}{(realizedPnl * currencyMultiplier).toFixed(2)} {currencySymbol}
+                {realizedPnl >= 0 ? "+" : ""}{realizedPnl.toFixed(2)} {currencySymbol}
               </span>
             </div>
           </div>
@@ -264,8 +263,26 @@ export default function PortfolioPage() {
                     {stocks.map((item) => {
                       const isBuy = item.type === "BUY";
                       const qty = Number(item.quantity || 0);
-                      const buyPrice = Number(item.buy_price || 0) * currencyMultiplier;
-                      const currentPrice = (prices[item.symbol] || Number(item.buy_price || 0)) * currencyMultiplier;
+                      const isUS = item.market === "US";
+
+                      const rawBuyPrice = Number(item.buy_price || 0);
+                      const rawCurrentPrice = prices[item.symbol] || rawBuyPrice;
+
+                      let buyPrice = rawBuyPrice;
+                      let currentPrice = rawCurrentPrice;
+
+                      if (isUS) {
+                        if (currency === "THB") {
+                          buyPrice = rawBuyPrice * exchangeRate;
+                          currentPrice = rawCurrentPrice * exchangeRate;
+                        }
+                      } else {
+                        if (currency === "USD") {
+                          buyPrice = rawBuyPrice / exchangeRate;
+                          currentPrice = rawCurrentPrice / exchangeRate;
+                        }
+                      }
+
                       const pnl = (currentPrice - buyPrice) * qty;
                       const pnlPercent = buyPrice > 0 ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
                       const isPositive = pnl >= 0;
