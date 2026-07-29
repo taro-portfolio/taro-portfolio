@@ -14,11 +14,10 @@ export default function InvitePage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>("");
   const [inviteCount, setInviteCount] = useState<number>(0);
-  const [vipMonthsEarned, setVipMonthsEarned] = useState<number>(0);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    async function checkUserAndLoadData() {
+    async function loadUserData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.replace("/login");
@@ -26,24 +25,29 @@ export default function InvitePage() {
       }
       setUserId(user.id);
 
-      // ดึงข้อมูลจำนวนเพื่อนที่เชิญ (ถ้าคุณเก็บไว้ใน Database สามารถดึงจาก Supabase ตรงนี้ได้)
-      // ตัวอย่างจำลองดึงจาก localStorage หรือกำหนดค่าเริ่มต้น
-      const savedInvites = localStorage.getItem(`taro_invites_${user.id}`);
-      const count = savedInvites ? parseInt(savedInvites, 10) : 3; // ตัวอย่างจำลองว่าเชิญแล้ว 3 คน
-      setInviteCount(count);
-      setVipMonthsEarned(Math.floor(count / 10));
+      // ดึงข้อมูลจำนวนการเชิญจากตาราง profiles
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("invite_count")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setInviteCount(profile.invite_count || 0);
+      }
 
       setLoading(false);
     }
-    checkUserAndLoadData();
+    loadUserData();
   }, [router]);
 
-  // สร้างลิงก์เชิญเพื่อนจาก Origin ของเว็บจริง + ID ผู้ใช้
+  // สร้างลิงก์เชิญเพื่อนโดยแนบ ?ref=user_id
   const inviteLink = typeof window !== "undefined" 
     ? `${window.location.origin}/login?ref=${userId}` 
-    : `https://taro-portfolio.com/login?ref=${userId}`;
+    : ``;
 
   const handleCopy = () => {
+    if (!inviteLink) return;
     navigator.clipboard.writeText(inviteLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
@@ -60,7 +64,9 @@ export default function InvitePage() {
     );
   }
 
-  const progressPercent = Math.min(100, ((inviteCount % 10) / 10) * 100);
+  const currentCycleCount = inviteCount % 10;
+  const progressPercent = Math.min(100, (currentCycleCount / 10) * 100);
+  const vipMonthsEarned = Math.floor(inviteCount / 10);
 
   return (
     <>
@@ -82,7 +88,7 @@ export default function InvitePage() {
             </h1>
             <p className="mt-3 text-sm md:text-base text-slate-300 max-w-2xl mx-auto">
               {lang === "th" 
-                ? "เพียงคัดลอกลิงก์ส่วนตัวของคุณส่งให้เพื่อน ครบทุกๆ 10 คนที่สมัครใช้งาน ระบบจะอัปเกรดสถานะ VIP ให้คุณอัตโนมัติทันที 1 เดือนเต็มแบบไม่มีเงื่อนไขซับซ้อน!" 
+                ? "เพียงคัดลอกลิงก์ส่วนตัวของคุณส่งให้เพื่อน ครบทุกๆ 10 คนที่สมัครใช้งาน ระบบจะอัปเกรดสถานะ VIP ให้คุณอัตโนมัติทันที 1 เดือนเต็ม!" 
                 : "Share your referral link. For every 10 friends who join, you automatically get 1 month of VIP membership free!"}
             </p>
           </div>
@@ -93,19 +99,19 @@ export default function InvitePage() {
             <div className="rounded-2xl bg-slate-900/80 p-6 border border-slate-800 shadow-xl flex flex-col justify-between">
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  {lang === "th" ? "เพื่อนที่คุณแนะนำสำเร็จ" : "Successful Invites"}
+                  {lang === "th" ? "เพื่อนที่คุณแนะนำสำเร็จทั้งหมด" : "Total Successful Invites"}
                 </p>
                 <div className="mt-2 flex items-baseline gap-2">
                   <span className="text-4xl font-black text-white">{inviteCount}</span>
-                  <span className="text-slate-400 text-sm">/ 10 {lang === "th" ? "คนสำหรับรอบถัดไป" : "for next reward"}</span>
+                  <span className="text-slate-400 text-sm">{lang === "th" ? "คน" : "people"}</span>
                 </div>
               </div>
 
               {/* Progress Bar */}
               <div className="mt-6">
                 <div className="flex justify-between text-xs text-slate-400 mb-1.5">
-                  <span>{lang === "th" ? "ความคืบหน้ารอบถัดไป" : "Progress"}</span>
-                  <span className="font-bold text-indigo-400">{inviteCount % 10} / 10</span>
+                  <span>{lang === "th" ? "ความคืบหน้ารอบถัดไป (สะสมครบ 10 คน)" : "Progress to next reward"}</span>
+                  <span className="font-bold text-indigo-400">{currentCycleCount} / 10</span>
                 </div>
                 <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700">
                   <div 
@@ -129,7 +135,7 @@ export default function InvitePage() {
 
               <div className="mt-6 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2.5">
                 <span>✨</span>
-                <span>{lang === "th" ? "ระบบคำนวณและต่ออายุ VIP ให้คุณอัตโนมัติทันทีเมื่อครบกำหนด" : "Auto-applied to your account instantly when target reached."}</span>
+                <span>{lang === "th" ? "ระบบคำนวณและต่ออายุ VIP ให้คุณอัตโนมัติทันทีเมื่อเพื่อนสมัครครบ" : "Auto-applied to your account instantly when target reached."}</span>
               </div>
             </div>
 
@@ -141,7 +147,7 @@ export default function InvitePage() {
               {lang === "th" ? "🔗 ลิงก์เชิญส่วนตัวของคุณ" : "🔗 Your Unique Referral Link"}
             </h2>
             <p className="text-xs text-slate-400 mb-4">
-              {lang === "th" ? "ส่งลิงก์นี้ให้เพื่อนผ่าน Line, Facebook, Twitter หรือกลุ่มลงทุนได้ทันที" : "Share this link with your friends."}
+              {lang === "th" ? "ส่งลิงก์นี้ให้เพื่อนผ่าน Line, Facebook หรือกลุ่มลงทุนได้ทันที" : "Share this link with your friends."}
             </p>
 
             <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -182,15 +188,6 @@ export default function InvitePage() {
                 className="rounded-xl bg-blue-600/20 border border-blue-600/30 px-4 py-2 text-xs font-bold text-blue-400 hover:bg-blue-600/30 transition flex items-center gap-1.5"
               >
                 💙 Facebook
-              </a>
-
-              <a 
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent("มาใช้งานระบบพอร์ตหุ้นสุดเจ๋ง TARO Portfolio กันเถอะ! 📈")}&url=${encodeURIComponent(inviteLink)}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="rounded-xl bg-slate-800 border border-slate-700 px-4 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 transition flex items-center gap-1.5"
-              >
-                🖤 X (Twitter)
               </a>
             </div>
 

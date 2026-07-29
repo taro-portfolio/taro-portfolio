@@ -106,6 +106,45 @@ export default function RegisterPage() {
         } else {
           localStorage.removeItem("referred_by_code");
         }
+
+        // 🌟 3. ระบบอัปเดตยอดเชิญ (+1) และต่ออายุ VIP อัตโนมัติให้ผู้แนะนำ (ถ้ามีรหัสผู้แนะนำ)
+        if (finalRefCode) {
+          try {
+            // ค้นหาโปรไฟล์ของเจ้าของรหัสแนะนำ (referrer) โดยใช้ ID หรือโค้ดแนะนำ
+            const { data: referrerProfile, error: refFindError } = await supabase
+              .from("profiles")
+              .select("id, invite_count, vip_expires_at")
+              .eq("id", finalRefCode) // สมมติว่าใช้ user.id เป็นรหัสแนะนำ
+              .single();
+
+            if (!refFindError && referrerProfile) {
+              const newInviteCount = (referrerProfile.invite_count || 0) + 1;
+              let updateData: any = { invite_count: newInviteCount };
+
+              // ทุกๆ 10 คน จะได้สิทธิ์ VIP เพิ่ม 1 เดือน (30 วัน) อัตโนมัติ
+              if (newInviteCount > 0 && newInviteCount % 10 === 0) {
+                const currentVipExpiry = referrerProfile.vip_expires_at 
+                  ? new Date(referrerProfile.vip_expires_at) 
+                  : new Date();
+                
+                // ถ้ายثหมดอายุไปแล้ว ให้เริ่มนับจากวันนี้ ถ้ายังไม่หมดอายุให้นับบวกเพิ่มไปอีก 30 วัน
+                const baseDate = currentVipExpiry > new Date() ? currentVipExpiry : new Date();
+                baseDate.setDate(baseDate.getDate() + 30);
+
+                updateData.vip_expires_at = baseDate.toISOString();
+                updateData.is_vip = true; // เปิดสถานะ VIP ให้ทันที
+              }
+
+              // บันทึกข้อมูลอัปเดตกลับไปให้ผู้แนะนำ
+              await supabase
+                .from("profiles")
+                .update(updateData)
+                .eq("id", referrerProfile.id);
+            }
+          } catch (refErr) {
+            console.error("Error updating referrer stats:", refErr);
+          }
+        }
       }
 
       alert("สมัครสมาชิกสำเร็จ 🎉 กรุณาเข้าสู่ระบบ");
