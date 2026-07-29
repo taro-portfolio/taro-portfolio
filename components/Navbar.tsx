@@ -22,6 +22,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
     pathname.startsWith("/portfolio") ||
     pathname.startsWith("/live-stock-news") ||
     pathname.startsWith("/vip") ||
+    pathname.startsWith("/invite") ||
     pathname.startsWith("/affiliate-program") ||
     pathname.startsWith("/settings");
 
@@ -69,7 +70,6 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
     if (data && data.is_vip) {
       router.push(targetPath);
     } else {
-      // ถ้ายังไม่เป็น VIP ให้เด้งไปหน้าชำระเงิน/สมัครแพ็กเกจทันที
       router.push("/vip/pay");
     }
   };
@@ -163,9 +163,9 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
           )}
         </div>
 
-        {/* แถวล่าง: เมนูนำทาง 4 ปุ่มพิเศษ วิ่งไปหน้าชำระเงินเมื่อยังไม่เป็น VIP */}
+        {/* แถวล่าง: เมนูนำทางทั้งหมด */}
         {isDashboard && (
-          <div className="flex items-center gap-6 overflow-x-auto border-t border-slate-800/80 py-3 text-sm text-slate-300 no-scrollbar">
+          <div className="flex items-center gap-5 overflow-x-auto border-t border-slate-800/80 py-3 text-sm text-slate-300 no-scrollbar">
             <Link href="/dashboard" className="whitespace-nowrap hover:text-white transition">
               {lang === "th" ? "แดชบอร์ด" : "Dashboard"}
             </Link>
@@ -174,7 +174,16 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "พอร์ตฟิลิปส์" : "Portfolio"}
             </Link>
 
-            {/* ปุ่มที่ 1: วิเคราะห์ข่าวหุ้นเรียลไทม์ */}
+            {/* 🌟 ปุ่มพิเศษ VIP Free เด่นสะดุดตา */}
+            <Link
+              href="/invite"
+              className="shrink-0 flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 px-3.5 py-1.5 text-xs font-black text-white shadow-[0_0_12px_rgba(245,158,11,0.4)] border border-amber-400/50 hover:scale-105 active:scale-95 transition animate-pulse whitespace-nowrap"
+            >
+              <span>🎁👑</span>
+              <span>{lang === "th" ? "VIP Free (ชวนเพื่อน)" : "🎁 VIP Free"}</span>
+            </Link>
+
+            {/* วิเคราะห์ข่าวหุ้นเรียลไทม์ */}
             <a 
               href="/live-stock-news" 
               onClick={(e) => handleVipProtectedClick(e, "/live-stock-news")}
@@ -183,7 +192,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               <span>📰</span> {lang === "th" ? "วิเคราะห์ข่าวหุ้นเรียลไทม์" : "Live Stock News"}
             </a>
 
-            {/* ปุ่มที่ 2: วิเคราะห์หุ้นเชิงลึก VIP */}
+            {/* วิเคราะห์หุ้นเชิงลึก VIP */}
             <a 
               href="/vip" 
               onClick={(e) => handleVipProtectedClick(e, "/vip")}
@@ -192,7 +201,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "วิเคราะห์หุ้นเชิงลึกVIP" : "VIP Deep Analysis"}
             </a>
 
-            {/* ปุ่มที่ 3: สิทธิประโยชน์สมาชิก VIP */}
+            {/* สิทธิประโยชน์สมาชิก VIP */}
             <a 
               href="/vip/dashboard" 
               onClick={(e) => handleVipProtectedClick(e, "/vip/dashboard")}
@@ -201,7 +210,7 @@ export default function Navbar({ lang = "th", setLang }: NavbarProps) {
               {lang === "th" ? "สิทธิประโยชน์สมาชิกVIP" : "VIP Benefits"}
             </a>
 
-            {/* ปุ่มที่ 4: สร้างรายได้ (Affiliate) */}
+            {/* สร้างรายได้ (Affiliate) */}
             <a 
               href="/affiliate-program" 
               onClick={(e) => handleVipProtectedClick(e, "/affiliate-program")}
