@@ -438,21 +438,25 @@ export default function Dashboard() {
 
       <main className="min-h-screen bg-slate-950 text-slate-100">
         
-        {/* 🌟 ป้ายไฟ LED วิ่งประกาศ (Marquee) ใต้แถบเมนู */}
-        <div className="w-full bg-gradient-to-r from-amber-950 via-purple-950 to-indigo-950 border-y border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.25)] py-2.5 overflow-hidden">
-          <div className="whitespace-nowrap animate-marquee flex items-center">
-            <span className="mx-6 text-sm md:text-base font-extrabold text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)] tracking-wide flex items-center gap-2">
-              <span className="text-xl">🔥</span> 
-              {lang === "th" 
-                ? "ขอเชิญท่านสมาชิก แนะนำเพื่อนมาทดลองใช้งาน ระบบ TARO Portfolio เชิญเพื่อนใช้งาน 10 คน รับสิทธิ์เป็นสมาชิก VIP 1 เดือนทันที! 🚀" 
-                : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
-            </span>
-            <span className="mx-6 text-sm md:text-base font-extrabold text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] tracking-wide flex items-center gap-2">
-              <span className="text-xl">⭐</span> 
-              {lang === "th" 
-                ? "ยิ่งชวนมาก ยิ่งได้สิทธิ์ VIP ยาวนานขึ้น มาร่วมเป็นส่วนหนึ่งของครอบครัว TARO กันเถอะ!" 
-                : "✨ Share the smart way to track investments with your network today!"}
-            </span>
+        {/* 🌟 ป้ายไฟ LED วิ่งประกาศ (Marquee) ใต้แถบเมนู แบบแสดงผลบังคับ 100% */}
+        <div style={{ width: '100%', background: 'linear-gradient(to right, #451a03, #3b0764, #1e1b4b)', borderTop: '2px solid rgba(245, 158, 11, 0.6)', borderBottom: '2px solid rgba(245, 158, 11, 0.6)', boxShadow: '0 0 25px rgba(245, 158, 11, 0.4)', padding: '10px 0', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', width: 'max-content', animation: 'ledScroll 25s linear infinite' }}>
+            <div style={{ display: 'flex', alignItems: 'center', paddingRight: '50px' }}>
+              <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#fbbf24', textShadow: '0 0 10px rgba(251, 191, 36, 0.9)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>🔥</span> 
+                {lang === "th" 
+                  ? "ขอเชิญท่านสมาชิก แนะนำเพื่อนมาทดลองใช้งาน ระบบ TARO Portfolio เชิญเพื่อนใช้งาน 10 คน รับสิทธิ์เป็นสมาชิก VIP 1 เดือนทันที! 🚀" 
+                  : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', paddingRight: '50px' }}>
+              <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#22d3ee', textShadow: '0 0 10px rgba(34, 211, 238, 0.9)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>⭐</span> 
+                {lang === "th" 
+                  ? "ยิ่งชวนมาก ยิ่งได้สิทธิ์ VIP ยาวนานขึ้น มาร่วมเป็นส่วนหนึ่งของครอบครัว TARO กันเถอะ!" 
+                  : "✨ Share the smart way to track investments with your network today!"}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -891,18 +895,11 @@ export default function Dashboard() {
         }}
       />
 
-      {/* 🌟 CSS Animation สำหรับตัวหนังสือวิ่ง (Marquee LED) */}
+      {/* 🌟 บังคับใส่ CSS Animation วิ่งข้ามหน้าจอแบบชัวร์ 100% */}
       <style jsx global>{`
-        @keyframes marquee {
-          0% { transform: translateX(100%); }
+        @keyframes ledScroll {
+          0% { transform: translateX(100vw); }
           100% { transform: translateX(-100%); }
-        }
-        .animate-marquee {
-          display: inline-flex;
-          animation: marquee 22s linear infinite;
-        }
-        .animate-marquee:hover {
-          animation-play-state: paused;
         }
       `}</style>
     </>
