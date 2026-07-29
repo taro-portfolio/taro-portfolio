@@ -121,53 +121,63 @@ export default function AffiliatePage() {
       setReferralLink(`${baseUrl}/register?ref=${user.id}`);
     }
 
-    // 🌟 ดึงเฉพาะสมาชิกที่ใช้รหัสแนะนำของเรา (ตัดบัญชีตัวเองออก)
+    // 🌟 ดึงรายชื่อสมาชิกที่ถูกแนะนำ โดยดึงคนที่ referred_by ตรงกับรหัส หรือ user.id
     try {
-      let query = supabase
-        .from("profiles")
-        .select("id, email, first_name, last_name, is_vip, vip_expire_date, created_at, referred_by")
-        .neq("id", user.id); // ห้ามดึงไอดีตัวเอง
+      let referredUsers: any[] = [];
 
       if (code) {
-        query = query.or(`referred_by.eq.${code},referred_by.eq.${user.id}`);
-      } else {
-        query = query.eq("referred_by", user.id);
+        const { data: dataByCode } = await supabase
+          .from("profiles")
+          .select("id, email, first_name, last_name, is_vip, vip_expire_date, created_at, referred_by")
+          .eq("referred_by", code)
+          .neq("id", user.id);
+        
+        if (dataByCode) referredUsers = [...referredUsers, ...dataByCode];
       }
 
-      const { data: referredUsers, error: refError } = await query.order("created_at", { ascending: false });
+      const { data: dataById } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name, is_vip, vip_expire_date, created_at, referred_by")
+        .eq("referred_by", user.id)
+        .neq("id", user.id);
 
-      if (refError) {
-        console.error("Error fetching referred users:", refError);
+      if (dataById) {
+        // รวมรายการและตัดตัวที่ซ้ำออก
+        const combined = [...referredUsers, ...dataById];
+        const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        referredUsers = unique;
       }
 
-      if (referredUsers) {
-        setReferredList(referredUsers);
-        setRegisteredReferrals(referredUsers.length);
+      // เรียงลำดับตามวันที่สมัครล่าสุด
+      referredUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        const vipCount = referredUsers.filter((u) => Boolean(u.is_vip)).length;
-        setVipReferrals(vipCount);
-      }
+      setReferredList(referredUsers);
+      setRegisteredReferrals(referredUsers.length);
+
+      const vipCount = referredUsers.filter((u) => Boolean(u.is_vip)).length;
+      setVipReferrals(vipCount);
+
     } catch (err) {
       console.error("Error fetching referrals:", err);
     }
 
     // ดึงจำนวนคลิกเข้าชม
     try {
-      let clickQuery = supabase
-        .from("affiliate_clicks")
-        .select("*", { count: "exact", head: true });
-
+      let clickCount = 0;
       if (code) {
-        clickQuery = clickQuery.or(`referral_code.eq.${code},referrer_id.eq.${user.id}`);
-      } else {
-        clickQuery = clickQuery.eq("referrer_id", user.id);
+        const { count: c1 } = await supabase
+          .from("affiliate_clicks")
+          .select("*", { count: "exact", head: true })
+          .eq("referral_code", code);
+        if (c1 !== null) clickCount += c1;
       }
-
-      const { count: clicksCount } = await clickQuery;
-
-      if (clicksCount !== null) {
-        setTotalClicks(clicksCount);
-      }
+      const { count: c2 } = await supabase
+        .from("affiliate_clicks")
+        .select("*", { count: "exact", head: true })
+        .eq("referrer_id", user.id);
+      
+      if (c2 !== null && c2 > clickCount) clickCount = c2;
+      setTotalClicks(clickCount);
     } catch (err) {
       console.error("Error fetching click count:", err);
     }
@@ -248,7 +258,7 @@ export default function AffiliatePage() {
       return;
     }
 
-    const { error } = await supabase.from("withdraws").insert({
+    const { error } = await supabase.from("withdrawals").insert({
       user_id: user.id,
       amount: amountNum,
       bank_name: bankName,
