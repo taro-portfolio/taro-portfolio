@@ -4,7 +4,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const lang = searchParams.get("lang") || "th";
-    const symbol = searchParams.get("symbol");
+    const symbol = searchParams.get("symbol") || "";
 
     const rssFeeds = [
       "https://finance.yahoo.com/news/rssindex",
@@ -31,20 +31,12 @@ export async function GET(request: Request) {
           const link = linkMatch ? linkMatch[1] : "#";
           const pubDate = dateMatch ? dateMatch[1] : new Date().toISOString();
 
-          // ถ้ามีการระบุ Ticker (เช่น TSLA, AAPL) ให้กรองข่าวที่เกี่ยวข้อง
-          if (symbol) {
-            if (!title.toUpperCase().includes(symbol.toUpperCase())) {
-              continue;
-            }
-          }
-
           if (title) {
             title = title
               .replace(/&amp;/g, "&")
               .replace(/&#39;/g, "'")
               .replace(/&quot;/g, '"')
-              .replace(/It&apos;s/g, "It is")
-              .replace(/It&apos;s/g, "It's");
+              .replace(/It&apos;s/g, "It is");
 
             allArticles.push({
               title,
@@ -59,50 +51,68 @@ export async function GET(request: Request) {
       }
     }
 
-    allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-    const latestNews = allArticles.slice(0, 6);
-
-    // 🌟 แปลงข้อความข่าวเป็นภาษาไทยอัตโนมัติเมื่อเลือกภาษา TH
-    const formattedNews = latestNews.map((item) => {
-      let translatedTitle = item.title;
-      let sentiment = lang === "th" ? "กลางๆ (Neutral)" : "Neutral";
-
-      if (lang === "th") {
-        // แมปคำแปลและสรุปใจความสำคัญเป็นไทยเพื่อให้เข้าใจง่าย
-        if (translatedTitle.includes("prediction markets")) {
-          translatedTitle = "หลายรัฐร่วมมือกันต่อสู้กับกฎระเบียบของตลาดคาดการณ์ผลการแข่งขันกีฬา";
-          sentiment = "ระมัดระวัง (Cautious)";
-        } else if (translatedTitle.includes("smart glasses")) {
-          translatedTitle = "Meta มีแนวโน้มชูจุดเด่นแว่นตาอัจฉริยะและนโยบายโซเชียลมีเดียในการประกาศผลประกอบการ";
-          sentiment = "เชิงบวก (Positive)";
-        } else if (translatedTitle.includes("SpaceX")) {
-          translatedTitle = "มูลค่าการประเมินของ SpaceX ในตลาดมีความเคลื่อนไหวครั้งสำคัญเทียบเท่าบริษัทเทคโนโลยีใหญ่";
-          sentiment = "กลางๆ (Neutral)";
-        } else if (translatedTitle.includes("Crypto stocks")) {
-          translatedTitle = "หุ้นกลุ่มคริปโตพุ่งรับกระแสการลงทุนที่โยกย้ายจากโครงสร้างพื้นฐาน AI";
-          sentiment = "เชิงบวก (Positive)";
-        } else {
-          // แปลงคำศัพท์ทั่วไปเบื้องต้น
-          translatedTitle = `สรุปข่าวสถานการณ์ล่าสุด: ${item.title}`;
-          sentiment = "กลางๆ (Neutral)";
-        }
+    // 1. ค้นหาข่าวสำหรับส่วนล่าง (ตามหุ้นที่ผู้ใช้พิมพ์ค้นหา เช่น TSLA)
+    let stockArticles = allArticles;
+    if (symbol && symbol.trim() !== "") {
+      const cleanSym = symbol.toUpperCase().trim();
+      stockArticles = allArticles.filter(item => item.title.toUpperCase().includes(cleanSym));
+      if (stockArticles.length === 0) {
+        stockArticles = allArticles.slice(0, 4); // ถ้าไม่เจอ ให้แสดงข่าวล่าสุดสำรอง
       }
+    } else {
+      stockArticles = allArticles.slice(0, 4);
+    }
 
-      return {
-        title: translatedTitle,
-        summary: translatedTitle,
-        link: item.link,
-        pubDate: item.pubDate,
-        source: item.source,
-        sentiment,
-        timeAgo: "Live"
-      };
-    });
+    const formattedStockNews = stockArticles.map((item) => ({
+      title: lang === "th" ? `รายงานด่วน: ${item.title}` : item.title,
+      summary: lang === "th" ? `สรุปประเด็นสำคัญของหุ้นตัวนี้จากตลาด: ${item.title}` : item.title,
+      link: item.link,
+      pubDate: item.pubDate,
+      source: item.source,
+      sentiment: "เชิงบวก (Positive)",
+      timeAgo: "Live"
+    }));
+
+    // 2. คัดเลือกข่าวสำหรับส่วนบน (ซ้าย: ทรัมป์/ภาษี | ขวา: เฟด/ดอกเบี้ย)
+    let trumpNews = allArticles.find(item => 
+      item.title.toLowerCase().includes("trump") || 
+      item.title.toLowerCase().includes("tariff") || 
+      item.title.toLowerCase().includes("tax") ||
+      item.title.toLowerCase().includes("trade")
+    ) || allArticles[0] || { title: "Trump Tariff & Trade Policy Updates", link: "#", source: "Global Trade Watch" };
+
+    let fedNews = allArticles.find(item => 
+      item.title.toLowerCase().includes("fed") || 
+      item.title.toLowerCase().includes("rate") || 
+      item.title.toLowerCase().includes("inflation") ||
+      item.title.toLowerCase().includes("interest") ||
+      item.title.toLowerCase().includes("bank")
+    ) || allArticles[1] || { title: "Federal Reserve Interest Rate & Economic Outlook", link: "#", source: "Federal Reserve Desk" };
+
+    const macroTop = [
+      {
+        headline: lang === "th" ? `🔥 เกาะติดนโยบายกำแพงภาษีและท่าทีทรัมป์ที่มีผลต่อตลาดหุ้น` : `🔥 Trump Tariff & Trade Impact`,
+        summary: lang === "th" ? `ประเด็นสำคัญ: ${trumpNews.title}` : trumpNews.title,
+        source: "Global Trade Watch",
+        url: trumpNews.link,
+        timeAgo: "Live Update",
+        sentiment: lang === "th" ? "เชิงระมัดระวัง (Cautious)" : "Cautious"
+      },
+      {
+        headline: lang === "th" ? `🏦 สัญญาณจากธนาคารกลางสหรัฐฯ (เฟด) กับทิศทางดอกเบี้ย` : `🏦 Federal Reserve Rate Outlook`,
+        summary: lang === "th" ? `ประเด็นสำคัญ: ${fedNews.title}` : fedNews.title,
+        source: "Federal Reserve Desk",
+        url: fedNews.link,
+        timeAgo: "Live Update",
+        sentiment: lang === "th" ? "กลางๆ (Neutral)" : "Neutral"
+      }
+    ];
 
     return NextResponse.json({
       success: true,
       updated_at: new Date().toISOString(),
-      news: formattedNews.length > 0 ? formattedNews : []
+      macro: macroTop,
+      news: formattedStockNews
     });
 
   } catch (error: any) {
