@@ -37,16 +37,16 @@ export default function AdminVipApprovalsPage() {
 
       let combinedPending: any[] = [];
 
-      // 1. ดึงจากตาราง vip_payments (ระบบใหม่)
+      // 1. ดึงจากตาราง vip_payments ทั้งหมด (เพื่อเช็คว่ามีข้อมูลรึเปล่า)
       const { data: paymentsData } = await supabase
         .from("vip_payments")
         .select("*, profiles(first_name, last_name, email)")
-        .eq("status", "pending");
+        .order("created_at", { ascending: false });
 
       if (paymentsData) {
         paymentsData.forEach((item) => {
           combinedPending.push({
-            id: item.id, // ใช้ ID ของ payment
+            id: item.id,
             userId: item.user_id,
             source: "payment_table",
             firstName: item.profiles?.first_name || "-",
@@ -55,24 +55,24 @@ export default function AdminVipApprovalsPage() {
             package: item.package || "99",
             amount: item.amount || 99,
             slipUrl: item.slip_url,
+            status: item.status || "pending",
             createdAt: item.created_at,
           });
         });
       }
 
-      // 2. ดึงจากตาราง profiles ที่ vip_status = 'pending' (ระบบเก่า หรือกรณีกดส่งแบบเดิม)
+      // 2. ดึงจากตาราง profiles ที่มี slip_url
       const { data: profilesPendingData } = await supabase
         .from("profiles")
         .select("*")
-        .eq("vip_status", "pending");
+        .not("slip_url", "is", null);
 
       if (profilesPendingData) {
         profilesPendingData.forEach((userItem) => {
-          // ป้องกันไม่ให้ซ้ำกับรายการจากตาราง payment ถ้ามี slip_url
           const exists = combinedPending.some((p) => p.userId === userItem.id);
-          if (!exists && userItem.slip_url) {
+          if (!exists) {
             combinedPending.push({
-              id: userItem.id, // ใช้ ID ของ user
+              id: userItem.id,
               userId: userItem.id,
               source: "profile_table",
               firstName: userItem.first_name || "-",
@@ -81,6 +81,7 @@ export default function AdminVipApprovalsPage() {
               package: userItem.vip_plan || "99",
               amount: userItem.vip_plan === "899" ? 899 : userItem.vip_plan === "499" ? 499 : 99,
               slipUrl: userItem.slip_url,
+              status: userItem.vip_status || "pending",
               createdAt: userItem.created_at || new Date().toISOString(),
             });
           }
@@ -145,7 +146,6 @@ export default function AdminVipApprovalsPage() {
     }
 
     try {
-      // ตรวจสอบหรือสร้างรหัสแนะนำ
       const { data: profileCheck } = await supabase
         .from("profiles")
         .select("referral_code")
@@ -173,7 +173,6 @@ export default function AdminVipApprovalsPage() {
         newReferralCode = `AF2026${paddedNum}`;
       }
 
-      // อัปเดตตาราง profiles ให้เป็น VIP Active
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
@@ -182,13 +181,12 @@ export default function AdminVipApprovalsPage() {
           vip_start_date: now.toISOString(),
           vip_expire_date: expireDate.toISOString(),
           referral_code: newReferralCode,
-          slip_url: null, //เคลียร์สลิปออก
+          slip_url: null,
         })
         .eq("id", item.userId);
 
       if (profileError) throw profileError;
 
-      // ถ้ามาจากตาราง vip_payments ให้อัปเดตสถานะเป็น approved ด้วย
       if (item.source === "payment_table") {
         await supabase
           .from("vip_payments")
@@ -348,9 +346,12 @@ export default function AdminVipApprovalsPage() {
                         </div>
                         <div className="text-xs text-slate-400">{item.email}</div>
                       </div>
-                      <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
-                        ยอดชำระ: ฿{item.amount} ({item.package})
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-xs font-bold">
+                          ยอดชำระ: ฿{item.amount} ({item.package})
+                        </span>
+                        <span className="text-[10px] text-slate-400">สถานะ: {item.status}</span>
+                      </div>
                     </div>
 
                     <div>
