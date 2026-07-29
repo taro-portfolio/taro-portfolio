@@ -25,15 +25,17 @@ export default function InvitePage() {
       }
       setUserId(user.id);
 
-      // ดึงข้อมูลจำนวนการเชิญจากตาราง profiles
+      // ดึงจำนวนคนที่เชิญสำเร็จจากตาราง profiles จริง (เริ่มต้นที่ 0 ถ้าไม่มีข้อมูล)
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("invite_count")
         .eq("id", user.id)
         .single();
 
-      if (profile) {
+      if (profile && !error) {
         setInviteCount(profile.invite_count || 0);
+      } else {
+        setInviteCount(0);
       }
 
       setLoading(false);
@@ -41,9 +43,9 @@ export default function InvitePage() {
     loadUserData();
   }, [router]);
 
-  // สร้างลิงก์เชิญเพื่อนโดยแนบ ?ref=user_id
+  // สร้างลิงก์เชิญเพื่อนจาก URL ปัจจุบัน + ID ผู้ใช้ (ชี้ไปที่หน้าสมัครสมาชิก register)
   const inviteLink = typeof window !== "undefined" 
-    ? `${window.location.origin}/login?ref=${userId}` 
+    ? `${window.location.origin}/register?ref=${userId}` 
     : ``;
 
   const handleCopy = () => {
@@ -88,7 +90,7 @@ export default function InvitePage() {
             </h1>
             <p className="mt-3 text-sm md:text-base text-slate-300 max-w-2xl mx-auto">
               {lang === "th" 
-                ? "เพียงคัดลอกลิงก์ส่วนตัวของคุณส่งให้เพื่อน ครบทุกๆ 10 คนที่สมัครใช้งาน ระบบจะอัปเกรดสถานะ VIP ให้คุณอัตโนมัติทันที 1 เดือนเต็ม!" 
+                ? "เพียงคัดลอกลิงก์ส่วนตัวของคุณส่งให้เพื่อน ครบทุกๆ 10 คนที่สมัครใช้งาน ระบบจะอัปเกรดสถานะ VIP ให้คุณอัตโนมัติทันที 1 เดือนเต็มแบบเรียลไทม์!" 
                 : "Share your referral link. For every 10 friends who join, you automatically get 1 month of VIP membership free!"}
             </p>
           </div>
