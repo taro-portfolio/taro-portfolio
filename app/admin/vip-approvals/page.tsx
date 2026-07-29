@@ -35,20 +35,7 @@ export default function AdminVipApprovalsPage() {
         return;
       }
 
-      // 1. ดึงรายการรออนุมัติจากตาราง profiles ที่มี slip_url ไม่เป็น null (ดึงคนที่ส่งสลิปจากหน้า pay มาแสดงทั้งหมด)
-      const { data: pending, error: pendingError } = await supabase
-        .from("profiles")
-        .select("*")
-        .not("slip_url", "is", null)
-        .order("created_at", { ascending: false });
-
-      if (pendingError) {
-        console.error("Error fetching pending users:", pendingError);
-      } else if (pending) {
-        setPendingUsers(pending);
-      }
-
-      // 2. ดึงรายชื่อสมาชิกทั้งหมด
+      // ดึงรายชื่อสมาชิกทั้งหมด
       const { data: everyone } = await supabase
         .from("profiles")
         .select("*")
@@ -61,9 +48,15 @@ export default function AdminVipApprovalsPage() {
           initialInputs[u.id] = u.referred_by || "";
         });
         setReferredInputs(initialInputs);
+
+        // กรองหาคนที่ส่งสลิปมา (มี slip_url ไม่เป็นค่าว่าง/null หรือมีสถานะเป็น pending)
+        const pendingList = everyone.filter(
+          (u) => (u.slip_url && u.slip_url.trim() !== "") || u.vip_status === "pending"
+        );
+        setPendingUsers(pendingList);
       }
 
-      // 3. ดึงข้อมูลคำขอถอนเงิน
+      // ดึงข้อมูลคำขอถอนเงิน
       const { data: withdraws } = await supabase
         .from("withdraws")
         .select("*, profiles(first_name, last_name, email)")
@@ -104,7 +97,6 @@ export default function AdminVipApprovalsPage() {
     }
 
     try {
-      // ตรวจสอบหรือสร้างรหัสแนะนำ (Referral Code)
       const { data: profileCheck } = await supabase
         .from("profiles")
         .select("referral_code")
@@ -132,7 +124,6 @@ export default function AdminVipApprovalsPage() {
         newReferralCode = `AF2026${paddedNum}`;
       }
 
-      // อัปเดตสถานะเป็น active, ตั้งค่าวันหมดอายุ, สร้างรหัสแนะนำ และเคลียร์ slip_url ออก
       const { error } = await supabase
         .from("profiles")
         .update({
