@@ -13,7 +13,6 @@ export type StockEditData = {
   buy_date?: string;
   note?: string;
   type?: "BUY" | "SELL";
-  realized_pnl?: number | string;
 };
 
 type AddStockModalProps = {
@@ -111,31 +110,6 @@ export default function AddStockModal({
       const totalAmount = (qty * price) + txFee;
       const targetCashCurrency = market === "US" ? "USD" : "THB";
 
-      let calculatedRealizedPnl = 0;
-
-      // 🌟 หากเป็นการ "ขายออก (SELL)" ให้คำนวณกำไร/ขาดทุน (Realized P/L) จากต้นทุนเฉลี่ย
-      if (txType === "SELL" && !editStock) {
-        const { data: buyItems } = await supabase
-          .from("portfolio")
-          .select("quantity, buy_price")
-          .eq("user_id", user.id)
-          .eq("symbol", cleanSymbol)
-          .eq("type", "BUY");
-
-        let totalCost = 0;
-        let totalShares = 0;
-        if (buyItems) {
-          buyItems.forEach((item) => {
-            totalCost += Number(item.buy_price || 0) * Number(item.quantity || 0);
-            totalShares += Number(item.quantity || 0);
-          });
-        }
-
-        const avgBuyPrice = totalShares > 0 ? totalCost / totalShares : price;
-        // สูตรคำนวณกำไร (ราคาขาย - ต้นทุนเฉลี่ย) * จำนวนที่ขาย - ค่าธรรมเนียม
-        calculatedRealizedPnl = ((price - avgBuyPrice) * qty) - txFee;
-      }
-
       const payload = {
         user_id: user.id,
         market,
@@ -146,7 +120,6 @@ export default function AddStockModal({
         buy_date: buyDate || null,
         note: note.trim(),
         type: txType,
-        realized_pnl: txType === "SELL" ? calculatedRealizedPnl : 0,
       };
 
       let error;
@@ -163,7 +136,6 @@ export default function AddStockModal({
             buy_date: payload.buy_date,
             note: payload.note,
             type: payload.type,
-            realized_pnl: payload.realized_pnl,
           })
           .eq("id", editStock.id)
           .eq("user_id", user.id);
