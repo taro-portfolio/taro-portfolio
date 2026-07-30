@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import AddStockModal from "@/components/portfolio/AddStockModal";
-import CashModal from "@/components/portfolio/CashModal";
 import { getStockPrice } from "@/lib/stock";
 import { translations, Language } from "@/lib/i18n";
 
@@ -19,20 +18,16 @@ export default function PortfolioPage() {
   const [openModal, setOpenModal] = useState(false);
   const [modalMode, setModalMode] = useState<"BUY" | "SELL">("BUY");
   const [editStock, setEditStock] = useState<any>(null);
-  const [openCashModal, setOpenCashModal] = useState(false);
   
   const [stocks, setStocks] = useState<any[]>([]);
-  const [cash, setCash] = useState(0);
-  const [cashCurrency, setCashCurrency] = useState<"THB" | "USD">("THB");
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [currency, setCurrency] = useState<"THB" | "USD">("THB");
-  const [exchangeRate, setExchangeRate] = useState(35); // ค่าเริ่มต้นสำรอง จะถูกทับด้วยค่า Real-time API
+  const [exchangeRate, setExchangeRate] = useState(35);
   const [realizedPnl, setRealizedPnl] = useState(0);
 
   const [lang, setLang] = useState<Language>("th");
   const t = translations[lang];
 
-  // 🌟 ดึงค่าอัตราแลกเปลี่ยนแบบ Real-time จาก API กลาง
   async function loadExchangeRate() {
     try {
       const res = await fetch("https://open.er-api.com/v6/latest/USD");
@@ -85,25 +80,14 @@ export default function PortfolioPage() {
     setStocks(items);
     await fetchPrices(items);
 
+    // 🌟 คำนวณ Realized P/L เฉพาะรายการ "SELL" ที่มีการบันทึก realized_pnl ไว้
     let pnl = 0;
     items.forEach(item => {
-      if (item.type === "SELL" && item.realized_pnl) {
+      if (item.type === "SELL" && item.realized_pnl !== null && item.realized_pnl !== undefined) {
         pnl += Number(item.realized_pnl);
       }
     });
     setRealizedPnl(pnl);
-
-    const { data: cashData } = await supabase
-      .from("cash")
-      .select("amount, currency")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(1);
-
-    if (cashData && cashData.length > 0) {
-      setCash(Number(cashData[0].amount || 0));
-      setCashCurrency((cashData[0].currency ?? "THB") as "THB" | "USD");
-    }
 
     setLoading(false);
   }, [router, fetchPrices]);
@@ -123,9 +107,6 @@ export default function PortfolioPage() {
   }
 
   const currencySymbol = currency === "USD" ? "$" : "฿";
-  const cashMultiplier = currency === "USD" 
-    ? (cashCurrency === "THB" ? 1 / exchangeRate : 1) 
-    : (cashCurrency === "USD" ? exchangeRate : 1);
 
   if (loading) {
     return (
@@ -212,13 +193,6 @@ export default function PortfolioPage() {
               >
                 <span>➖</span> ขายหุ้น (ขายออก)
               </button>
-
-              <button
-                onClick={() => setOpenCashModal(true)}
-                className="rounded-xl bg-slate-900 border border-slate-700/80 px-5 py-2.5 font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-2 text-sm cursor-pointer shadow-sm"
-              >
-                <span>💵</span> แก้ไขเงินสด <span className="text-indigo-400">({currencySymbol}{(cash * cashMultiplier).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
-              </button>
             </div>
 
             <div className="rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2.5 text-xs md:text-sm font-semibold text-slate-300 flex items-center gap-2">
@@ -273,19 +247,15 @@ export default function PortfolioPage() {
                       let buyPrice = rawBuyPrice;
                       let currentPrice = rawCurrentPrice;
 
-                      // 🌟 ปรับปรุงการแปลงสกุลเงินหุ้น US ให้ถูกต้องตามสกุลเงินที่เลือกแสดงผล
                       if (isUS) {
                         if (currency === "THB") {
-                          // ถ้าบันทึกเป็น USD แต่ผู้ใช้เลือกดูเป็น THB ให้แปลงเป็น THB
                           buyPrice = rawBuyPrice * exchangeRate;
                           currentPrice = rawCurrentPrice * exchangeRate;
                         } else {
-                          // ถ้าผู้ใช้เลือกดูเป็น USD แสดงผลตามค่า USD จริง
                           buyPrice = rawBuyPrice;
                           currentPrice = rawCurrentPrice;
                         }
                       } else {
-                        // หุ้นไทยหรือตลาดอื่นๆ (บันทึกเป็น THB)
                         if (currency === "USD") {
                           buyPrice = rawBuyPrice / exchangeRate;
                           currentPrice = rawCurrentPrice / exchangeRate;
@@ -295,7 +265,11 @@ export default function PortfolioPage() {
                         }
                       }
 
-                      const pnl = (currentPrice - buyPrice) * qty;
+                      // ถ้าเป็นรายการขาย (SELL) ให้โชว์กำไรที่ขายได้จริงจาก realized_pnl ของแถวนั้นๆ
+                      const pnl = !isBuy && item.realized_pnl !== null && item.realized_pnl !== undefined
+                        ? Number(item.realized_pnl) * (currency === "THB" ? exchangeRate : 1)
+                        : (currentPrice - buyPrice) * qty;
+
                       const pnlPercent = buyPrice > 0 ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
                       const isPositive = pnl >= 0;
 
@@ -364,14 +338,6 @@ export default function PortfolioPage() {
         editStock={editStock}
         defaultType={modalMode}
         onClearEdit={() => setEditStock(null)}
-      />
-
-      <CashModal
-        open={openCashModal}
-        onClose={() => setOpenCashModal(false)}
-        currentCash={cash}
-        currentCurrency={cashCurrency}
-        onSaved={() => loadData()}
       />
     </>
   );
