@@ -23,7 +23,8 @@ export default function PortfolioPage() {
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [currency, setCurrency] = useState<"THB" | "USD">("THB");
   const [exchangeRate, setExchangeRate] = useState(35);
-  const [realizedPnl, setRealizedPnl] = useState(0);
+  const [realizedPnlMap, setRealizedPnlMap] = useState<Record<string, { pnl: number, pnlPercent: number }>>({});
+  const [totalRealizedPnl, setTotalRealizedPnl] = useState(0);
 
   const [lang, setLang] = useState<Language>("th");
   const t = translations[lang];
@@ -74,20 +75,59 @@ export default function PortfolioPage() {
       .from("portfolio")
       .select("*")
       .eq("user_id", user.id)
-      .order("buy_date", { ascending: false });
+      .order("buy_date", { ascending: true }); // เรียงจากเก่าไปใหม่เพื่อคำนวณต้นทุนสะสม
 
     const items = portData || [];
     setStocks(items);
     await fetchPrices(items);
 
-    // 🌟 คำนวณ Realized P/L เฉพาะรายการ "SELL" ที่มีการบันทึก realized_pnl ไว้
-    let pnl = 0;
+    // 🌟 คำนวณกำไร/ขาดทุนจากไม้ที่ขาย (FIFO / Average Cost Matching)
+    const pnlMap: Record<string, { pnl: number, pnlPercent: number }> = {};
+    let sumRealizedPnl = 0;
+
+    // จัดกลุ่มตาม Ticker
+    const symbolGroups: Record<string, any[]> = {};
     items.forEach(item => {
-      if (item.type === "SELL" && item.realized_pnl !== null && item.realized_pnl !== undefined) {
-        pnl += Number(item.realized_pnl);
-      }
+      const sym = item.symbol;
+      if (!symbolGroups[sym]) symbolGroups[sym] = [];
+      symbolGroups[sym].push(item);
     });
-    setRealizedPnl(pnl);
+
+    Object.keys(symbolGroups).forEach(sym => {
+      const txs = symbolGroups[sym];
+      let avgBuyPrice = 0;
+      let totalShares = 0;
+
+      txs.forEach(tx => {
+        const qty = Number(tx.quantity || 0);
+        const price = Number(tx.buy_price || 0);
+        const fee = Number(tx.fee || 0);
+
+        if (tx.type === "BUY") {
+          const totalCost = (avgBuyPrice * totalShares) + (price * qty) + fee;
+          totalShares += qty;
+          avgBuyPrice = totalShares > 0 ? totalCost / totalShares : 0;
+        } else if (tx.type === "SELL") {
+          if (totalShares > 0) {
+            // คำนวณกำไรจากการขายไม้หนี้ (ราคาขาย - ต้นทุนเฉลี่ย ณ ตอนนั้น) * จำนวนที่ขาย - ค่าธรรมเนียม
+            const pnl = ((price - avgBuyPrice) * qty) - fee;
+            const pnlPercent = avgBuyPrice > 0 ? ((price - avgBuyPrice) / avgBuyPrice) * 100 : 0;
+            
+            pnlMap[tx.id] = { pnl, pnlPercent };
+            sumRealizedPnl += pnl;
+
+            totalShares -= qty;
+            if (totalShares <= 0) {
+              avgBuyPrice = 0;
+              totalShares = 0;
+            }
+          }
+        }
+      });
+    });
+
+    setRealizedPnlMap(pnlMap);
+    setTotalRealizedPnl(sumRealizedPnl);
 
     setLoading(false);
   }, [router, fetchPrices]);
@@ -118,6 +158,9 @@ export default function PortfolioPage() {
       </main>
     );
   }
+
+  // แสดงผลแบบเรียงจากใหม่ไปเก่าสำหรับตาราง
+  const displayStocks = [...stocks].reverse();
 
   return (
     <>
@@ -197,8 +240,8 @@ export default function PortfolioPage() {
 
             <div className="rounded-xl bg-slate-900/80 border border-slate-800 px-4 py-2.5 text-xs md:text-sm font-semibold text-slate-300 flex items-center gap-2">
               <span className="text-slate-400">กำไร/ขาดทุนที่ขายแล้ว (Realized P/L):</span> 
-              <span className={`font-bold ${realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {realizedPnl >= 0 ? "+" : ""}{(realizedPnl * (currency === "THB" ? exchangeRate : 1)).toFixed(2)} {currencySymbol}
+              <span className={`font-bold ${totalRealizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                {totalRealizedPnl >= 0 ? "+" : ""}{(totalRealizedPnl * (currency === "THB" ? exchangeRate : 1)).toFixed(2)} {currencySymbol}
               </span>
             </div>
           </div>
@@ -236,7 +279,7 @@ export default function PortfolioPage() {
                   </thead>
 
                   <tbody className="divide-y divide-slate-800/60 text-xs md:text-sm">
-                    {stocks.map((item) => {
+                    {displayStocks.map((item) => {
                       const isBuy = item.type === "BUY";
                       const qty = Number(item.quantity || 0);
                       const isUS = item.market === "US";
@@ -265,12 +308,20 @@ export default function PortfolioPage() {
                         }
                       }
 
-                      // ถ้าเป็นรายการขาย (SELL) ให้โชว์กำไรที่ขายได้จริงจาก realized_pnl ของแถวนั้นๆ
-                      const pnl = !isBuy && item.realized_pnl !== null && item.realized_pnl !== undefined
-                        ? Number(item.realized_pnl) * (currency === "THB" ? exchangeRate : 1)
-                        : (currentPrice - buyPrice) * qty;
+                      let pnl = 0;
+                      let pnlPercent = 0;
 
-                      const pnlPercent = buyPrice > 0 ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
+                      if (isBuy) {
+                        pnl = (currentPrice - buyPrice) * qty;
+                        pnlPercent = buyPrice > 0 ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
+                      } else {
+                        const sellData = realizedPnlMap[item.id];
+                        if (sellData) {
+                          pnl = sellData.pnl * (currency === "THB" ? exchangeRate : 1);
+                          pnlPercent = sellData.pnlPercent;
+                        }
+                      }
+
                       const isPositive = pnl >= 0;
 
                       return (
