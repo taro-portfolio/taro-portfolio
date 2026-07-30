@@ -13,6 +13,7 @@ export type StockEditData = {
   buy_date?: string;
   note?: string;
   type?: "BUY" | "SELL";
+  realized_pnl?: number | string;
 };
 
 type AddStockModalProps = {
@@ -83,7 +84,8 @@ export default function AddStockModal({
   async function handleSave(e?: React.FormEvent) {
     if (e) e.preventDefault();
 
-    if (!symbol.trim() || !quantity || !buyPrice) {
+    const cleanSymbol = symbol.toUpperCase().trim();
+    if (!cleanSymbol || !quantity || !buyPrice) {
       alert("กรุณากรอก Ticker, จำนวนหุ้น และราคาให้ครบถ้วน");
       return;
     }
@@ -91,7 +93,6 @@ export default function AddStockModal({
     setSaving(true);
 
     try {
-      // 🌟 เปลี่ยนมาใช้ getSession() แทน เพื่อให้อ่านค่าจากเครื่องมือถือได้ทันที ไม่หลุดบ่อย
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -110,16 +111,42 @@ export default function AddStockModal({
       const totalAmount = (qty * price) + txFee;
       const targetCashCurrency = market === "US" ? "USD" : "THB";
 
+      let calculatedRealizedPnl = 0;
+
+      // 🌟 หากเป็นการ "ขายออก (SELL)" ให้คำนวณกำไร/ขาดทุน (Realized P/L) จากต้นทุนเฉลี่ย
+      if (txType === "SELL" && !editStock) {
+        const { data: buyItems } = await supabase
+          .from("portfolio")
+          .select("quantity, buy_price")
+          .eq("user_id", user.id)
+          .eq("symbol", cleanSymbol)
+          .eq("type", "BUY");
+
+        let totalCost = 0;
+        let totalShares = 0;
+        if (buyItems) {
+          buyItems.forEach((item) => {
+            totalCost += Number(item.buy_price || 0) * Number(item.quantity || 0);
+            totalShares += Number(item.quantity || 0);
+          });
+        }
+
+        const avgBuyPrice = totalShares > 0 ? totalCost / totalShares : price;
+        // สูตรคำนวณกำไร (ราคาขาย - ต้นทุนเฉลี่ย) * จำนวนที่ขาย - ค่าธรรมเนียม
+        calculatedRealizedPnl = ((price - avgBuyPrice) * qty) - txFee;
+      }
+
       const payload = {
         user_id: user.id,
         market,
-        symbol: symbol.toUpperCase().trim(),
+        symbol: cleanSymbol,
         quantity: qty,
         buy_price: price,
         fee: txFee,
         buy_date: buyDate || null,
         note: note.trim(),
         type: txType,
+        realized_pnl: txType === "SELL" ? calculatedRealizedPnl : 0,
       };
 
       let error;
@@ -136,6 +163,7 @@ export default function AddStockModal({
             buy_date: payload.buy_date,
             note: payload.note,
             type: payload.type,
+            realized_pnl: payload.realized_pnl,
           })
           .eq("id", editStock.id)
           .eq("user_id", user.id);
@@ -178,9 +206,9 @@ export default function AddStockModal({
           let updatedCashAmount = currentCashAmount;
 
           if (txType === "SELL") {
-            updatedCashAmount += totalAmount; 
+            updatedCashAmount += totalAmount; // ขายได้เงินเพิ่มเข้ากระเป๋า
           } else if (txType === "BUY") {
-            updatedCashAmount -= totalAmount; 
+            updatedCashAmount -= totalAmount; // ซื้อเสียเงินออกจากกระเป๋า
           }
 
           if (cashId) {
@@ -275,7 +303,7 @@ export default function AddStockModal({
               <input
                 type="text"
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value.trim())}
+                onChange={(e) => setSymbol(e.target.value)}
                 placeholder="เช่น NVDA, PTT, JEPI"
                 className="w-full rounded-xl border border-gray-300 p-2.5 text-gray-900 uppercase focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               />

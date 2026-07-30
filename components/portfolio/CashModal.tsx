@@ -19,8 +19,8 @@ export default function CashModal({
   onSaved,
 }: CashModalProps) {
   const [amount, setAmount] = useState(currentCash);
-const [currency, setCurrency] = useState<"THB" | "USD">("THB");
-const [loading, setLoading] = useState(false);
+  const [currency, setCurrency] = useState<"THB" | "USD">("THB");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setAmount(currentCash);
@@ -41,21 +41,57 @@ const [loading, setLoading] = useState(false);
 
     setLoading(true);
 
-    const { error } = await supabase.from("cash").upsert({
-  user_id: user.id,
-  amount: amount,
-  currency: currency,
-});
+    try {
+      // 1. ค้นหาแถวข้อมูลเงินสดที่มีอยู่แล้วของผู้ใช้ตามสกุลเงินที่เลือก
+      const { data: existingCash, error: fetchError } = await supabase
+        .from("cash")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("currency", currency)
+        .maybeSingle();
 
-    setLoading(false);
+      if (fetchError) {
+        throw fetchError;
+      }
 
-    if (error) {
-      alert(error.message);
-      return;
+      let error;
+
+      if (existingCash) {
+        // 2. ถ้ามีข้อมูลอยู่แล้ว ให้ใช้วิธี Update ตาม ID เดิม
+        const res = await supabase
+          .from("cash")
+          .update({
+            amount: Number(amount),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingCash.id);
+        error = res.error;
+      } else {
+        // 3. ถ้ายังไม่มี ให้สร้างแถวใหม่ (Insert)
+        const res = await supabase.from("cash").insert([
+          {
+            user_id: user.id,
+            amount: Number(amount),
+            currency: currency,
+            updated_at: new Date().toISOString(),
+          },
+        ]);
+        error = res.error;
+      }
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      await onSaved();
+      onClose();
+    } catch (err: any) {
+      console.error("Error saving cash:", err);
+      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูลเงินสด");
+    } finally {
+      setLoading(false);
     }
-
-    await onSaved();
-    onClose();
   };
 
   return (
@@ -64,17 +100,17 @@ const [loading, setLoading] = useState(false);
         <h2 className="mb-6 text-2xl font-bold">💰 แก้ไขเงินสด</h2>
 
         <label className="mb-2 block text-sm font-medium">
-  สกุลเงิน
-</label>
+          สกุลเงิน
+        </label>
 
-<select
-  value={currency}
-  onChange={(e) => setCurrency(e.target.value as "THB" | "USD")}
-  className="mb-4 w-full rounded-lg border p-3"
->
-  <option value="THB">🇹🇭 THB</option>
-  <option value="USD">🇺🇸 USD</option>
-</select>
+        <select
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value as "THB" | "USD")}
+          className="mb-4 w-full rounded-lg border p-3"
+        >
+          <option value="THB">🇹🇭 THB</option>
+          <option value="USD">🇺🇸 USD</option>
+        </select>
 
         <label className="mb-2 block text-sm font-medium">
           จำนวนเงินสด
@@ -82,6 +118,7 @@ const [loading, setLoading] = useState(false);
 
         <input
           type="number"
+          step="any"
           value={amount}
           onChange={(e) => setAmount(Number(e.target.value))}
           className="mb-6 w-full rounded-lg border p-3"
@@ -89,16 +126,18 @@ const [loading, setLoading] = useState(false);
 
         <div className="flex justify-end gap-3">
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg bg-gray-300 px-5 py-2"
+            className="rounded-lg bg-gray-300 px-5 py-2 cursor-pointer"
           >
             ยกเลิก
           </button>
 
           <button
+            type="button"
             onClick={saveCash}
             disabled={loading}
-            className="rounded-lg bg-green-600 px-5 py-2 text-white"
+            className="rounded-lg bg-green-600 px-5 py-2 text-white cursor-pointer hover:bg-green-500 transition"
           >
             {loading ? "กำลังบันทึก..." : "บันทึก"}
           </button>
