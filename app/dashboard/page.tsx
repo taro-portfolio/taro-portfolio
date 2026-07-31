@@ -971,12 +971,18 @@ export default function Dashboard() {
       {openDepositModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl text-white">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
               <span>📥</span> {lang === "th" ? "ฝากเงินสดเข้าพอร์ต" : "Deposit Cash"}
             </h3>
-            <p className="text-xs text-slate-400 mb-4">
+            <p className="text-xs text-slate-400 mb-2">
               {lang === "th" ? `สกุลเงินหลักปัจจุบัน: ${cashCurrency}` : `Current Currency: ${cashCurrency}`}
             </p>
+
+            {/* 🌟 คำอธิบายชี้แจง */}
+            <div className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-[11px] text-amber-300 leading-relaxed">
+              ⚠️ <b>หมายเหตุ:</b> การลงบันทึกฝากถอนเป็นเพียงตัวเลขจำลองเหมือนบันทึกรายรับรายจ่าย ไม่ใช่จำนวนเงินจริงๆ ทางแอปไม่มีการให้ฝากหรือถอนเงินผ่านแอปใดๆ ทั้งสิ้น
+            </div>
+
             <input
               type="number"
               step="any"
@@ -1008,12 +1014,18 @@ export default function Dashboard() {
       {openWithdrawModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl text-white">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
               <span>📤</span> {lang === "th" ? "ถอนเงินสดออกจากพอร์ต" : "Withdraw Cash"}
             </h3>
-            <p className="text-xs text-slate-400 mb-4">
+            <p className="text-xs text-slate-400 mb-2">
               {lang === "th" ? `สกุลเงินหลักปัจจุบัน: ${cashCurrency}` : `Current Currency: ${cashCurrency}`}
             </p>
+
+            {/* 🌟 คำอธิบายชี้แจง */}
+            <div className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-[11px] text-amber-300 leading-relaxed">
+              ⚠️ <b>หมายเหตุ:</b> การลงบันทึกฝากถอนเป็นเพียงตัวเลขจำลองเหมือนบันทึกรายรับรายจ่าย ไม่ใช่จำนวนเงินจริงๆ ทางแอปไม่มีการให้ฝากหรือถอนเงินผ่านแอปใดๆ ทั้งสิ้น
+            </div>
+
             <input
               type="number"
               step="any"
