@@ -23,6 +23,13 @@ export default function Dashboard() {
   const [modalMode, setModalMode] = useState<"BUY" | "SELL">("BUY");
   const [editStock, setEditStock] = useState<any>(null);
   const [openCashModal, setOpenCashModal] = useState(false);
+  
+  // 🌟 State สำหรับ Modal ฝาก/ถอนเงินสดด่วน
+  const [openDepositModal, setOpenDepositModal] = useState(false);
+  const [openWithdrawModal, setOpenWithdrawModal] = useState(false);
+  const [cashInputAmount, setCashInputAmount] = useState("");
+  const [cashActionLoading, setCashActionLoading] = useState(false);
+
   const [rawStocks, setRawStocks] = useState<any[]>([]);
   const [cash, setCash] = useState(0);
   const [cashCurrency, setCashCurrency] = useState<"THB" | "USD">("THB");
@@ -226,6 +233,68 @@ export default function Dashboard() {
   useEffect(() => {
     initDashboard();
   }, [initDashboard]);
+
+  // 🌟 ฟังก์ชันจัดการฝาก/ถอนเงินสดด่วน
+  async function handleDepositWithdraw(isDeposit: boolean) {
+    const val = Number(cashInputAmount);
+    if (isNaN(val) || val <= 0) {
+      alert(lang === "th" ? "กรุณากรอกจำนวนเงินให้ถูกต้อง" : "Please enter a valid amount");
+      return;
+    }
+
+    setCashActionLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const targetCurrency = cashCurrency || "THB";
+
+      // ดึงข้อมูลกระเป๋าเงินสดล่าสุด
+      const { data: existingCash } = await supabase
+        .from("cash")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("currency", targetCurrency)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+
+      let currentAmount = 0;
+      let cashId = null;
+
+      if (existingCash && existingCash.length > 0) {
+        currentAmount = Number(existingCash[0].amount || 0);
+        cashId = existingCash[0].id;
+      }
+
+      const newAmount = isDeposit ? (currentAmount + val) : (currentAmount - val);
+
+      if (cashId) {
+        await supabase
+          .from("cash")
+          .update({ amount: newAmount, updated_at: new Date().toISOString() })
+          .eq("id", cashId);
+      } else {
+        await supabase.from("cash").insert([
+          {
+            user_id: user.id,
+            amount: newAmount,
+            currency: targetCurrency,
+            updated_at: new Date().toISOString(),
+          }
+        ]);
+      }
+
+      setCashInputAmount("");
+      setOpenDepositModal(false);
+      setOpenWithdrawModal(false);
+      await loadCash(user.id);
+    } catch (err) {
+      console.error(err);
+      alert("เกิดข้อผิดพลาดในการทำรายการเงินสด");
+    } finally {
+      setCashActionLoading(false);
+    }
+  }
 
   async function handleAdminAccess() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -438,7 +507,7 @@ export default function Dashboard() {
 
       <main className="min-h-screen bg-slate-950 text-slate-100">
         
-        {/* 🌟 ป้ายประกาศสุดเด่น: พื้นหลังนีออนม่วง-ทองเข้ม, ขอบเรืองแสงสว่าง, ตัวหนังสือใหญ่สะใจ & วิ่งไวขึ้น */}
+        {/* 🌟 ป้ายประกาศสุดเด่น */}
         <div className="mx-auto max-w-7xl px-4 pt-6">
           <div style={{ 
             width: '100%', 
@@ -451,8 +520,6 @@ export default function Dashboard() {
             position: 'relative' 
           }}>
             <div className="marquee-container">
-              
-              {/* ชุดข้อความที่ 1 (ตัวหนังสือใหญ่, สีเหลืองทองนีออนสดใส, มีเงาเรืองแสง) */}
               <div className="marquee-content">
                 <span style={{ fontSize: '18px', fontWeight: '900', color: '#fef08a', textShadow: '0 0 10px rgba(234, 179, 8, 0.8), 0 2px 4px rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '22px' }}>🔥</span> 
@@ -461,8 +528,6 @@ export default function Dashboard() {
                     : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
                 </span>
               </div>
-
-              {/* ชุดข้อความที่ 2 (สำเนาต่อท้ายเพื่อให้วนลูปแบบไร้รอยต่อ) */}
               <div className="marquee-content">
                 <span style={{ fontSize: '18px', fontWeight: '900', color: '#fef08a', textShadow: '0 0 10px rgba(234, 179, 8, 0.8), 0 2px 4px rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '22px' }}>🔥</span> 
@@ -471,7 +536,6 @@ export default function Dashboard() {
                     : "🎉 Invite your friends to try TARO Portfolio! Refer 10 friends and get 1 month of VIP membership for free! 🚀"}
                 </span>
               </div>
-
             </div>
           </div>
         </div>
@@ -629,6 +693,7 @@ export default function Dashboard() {
 
           </div>
 
+          {/* 🌟 ปุ่มเมนูด้านล่าง (เพิ่มปุ่ม ฝากเงินสด และ ถอนเงินสด ตามที่ต้องการ) */}
           <div className="mt-6 md:mt-8 flex flex-wrap gap-3 md:gap-4">
             <button
               onClick={() => {
@@ -657,6 +722,26 @@ export default function Dashboard() {
               className="rounded-xl bg-slate-900 border border-slate-800 px-6 py-2.5 font-bold text-slate-200 hover:bg-slate-800 active:scale-95 transition flex items-center gap-2 cursor-pointer text-sm"
             >
               <span>💵</span> {t.editCash}
+            </button>
+
+            <button
+              onClick={() => {
+                setCashInputAmount("");
+                setOpenDepositModal(true);
+              }}
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 font-bold text-white shadow-lg active:scale-95 transition flex items-center gap-2 cursor-pointer text-sm"
+            >
+              <span>📥</span> {lang === "th" ? "ฝากเงินสด" : "Deposit Cash"}
+            </button>
+
+            <button
+              onClick={() => {
+                setCashInputAmount("");
+                setOpenWithdrawModal(true);
+              }}
+              className="rounded-xl bg-amber-600 hover:bg-amber-500 px-6 py-2.5 font-bold text-white shadow-lg active:scale-95 transition flex items-center gap-2 cursor-pointer text-sm"
+            >
+              <span>📤</span> {lang === "th" ? "ถอนเงินสด" : "Withdraw Cash"}
             </button>
           </div>
 
@@ -882,6 +967,80 @@ export default function Dashboard() {
         </div>
       </main>
 
+      {/* 🌟 Modal สำหรับฝากเงินสด */}
+      {openDepositModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl text-white">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <span>📥</span> {lang === "th" ? "ฝากเงินสดเข้าพอร์ต" : "Deposit Cash"}
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              {lang === "th" ? `สกุลเงินหลักปัจจุบัน: ${cashCurrency}` : `Current Currency: ${cashCurrency}`}
+            </p>
+            <input
+              type="number"
+              step="any"
+              value={cashInputAmount}
+              onChange={(e) => setCashInputAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-white text-lg font-bold mb-6 focus:border-emerald-500 focus:outline-none"
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setOpenDepositModal(false)}
+                className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-700 transition cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => handleDepositWithdraw(true)}
+                disabled={cashActionLoading}
+                className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-500 transition cursor-pointer"
+              >
+                {cashActionLoading ? "กำลังบันทึก..." : "ยืนยันฝากเงิน"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 Modal สำหรับถอนเงินสด */}
+      {openWithdrawModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl text-white">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <span>📤</span> {lang === "th" ? "ถอนเงินสดออกจากพอร์ต" : "Withdraw Cash"}
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              {lang === "th" ? `สกุลเงินหลักปัจจุบัน: ${cashCurrency}` : `Current Currency: ${cashCurrency}`}
+            </p>
+            <input
+              type="number"
+              step="any"
+              value={cashInputAmount}
+              onChange={(e) => setCashInputAmount(e.target.value)}
+              placeholder="0.00"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-white text-lg font-bold mb-6 focus:border-amber-500 focus:outline-none"
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setOpenWithdrawModal(false)}
+                className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-700 transition cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => handleDepositWithdraw(false)}
+                disabled={cashActionLoading}
+                className="rounded-xl bg-amber-600 px-5 py-2 text-sm font-bold text-white hover:bg-amber-500 transition cursor-pointer"
+              >
+                {cashActionLoading ? "กำลังบันทึก..." : "ยืนยันถอนเงิน"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AddStockModal
         open={openModal || !!editStock}
         onClose={() => {
@@ -911,7 +1070,6 @@ export default function Dashboard() {
         }}
       />
 
-      {/* 🌟 ปรับเพิ่มความเร็วขึ้น (20s) และจัดกึ่งกลางวนลูปสมบูรณ์ */}
       <style jsx global>{`
         @keyframes ledScroll {
           0% { transform: translateX(25%); }
